@@ -9,7 +9,7 @@ library(flux)
 #the loaded data file has the first colum as the dilution vales
 #the bottom row is the dates on which the ELISAs were run
 #samples with wonky curves have been removed manually already (as per QC graphs at the end of the file)
-setwd("~/Dropbox/Heise/U19-Antibody/")
+setwd("~/Dropbox/Heise/U19-Ab/")
 data1<-read.csv("data_bin/raw_platereader_formatted.csv")
 
 #make dilutions row names
@@ -102,7 +102,7 @@ for(i in 1:nrow(data1))
 #create new DF with sample IDs and AUC data only and export
 colnames(data1)[ncol(data1)]="AUC"
 aucdata=data1[c(1:10,ncol(data1))]
-write.csv(aucdata,"AUC_data.csv",row.names=F)
+write.csv(aucdata,"data_bin/AUC_data.csv",row.names=F)
 
 #remove AUC from data
 data1=data1[1:(ncol(data1)-1)]
@@ -119,7 +119,7 @@ data1=data1[1:(ncol(data1)-1)]
 # will average out any duplicate values (e.g. same sample run different days)
 
 wideauc=dcast(aucdata, RIX + ID + day + virus + antigen + cohort + assay_date ~ isotype,mean,value.var='AUC')
-write.csv(wideauc,"AUC_by_isotype.csv",row.names=F)
+write.csv(wideauc,"data_bin/AUC_by_isotype.csv",row.names=F)
 
 
 #### HALF MAX (absorbance >1.75) ####
@@ -147,7 +147,7 @@ data1=data1[-ncol(data1)]
 
 #cast back into wide format based on isotype
 wide.halfmax=dcast(halfmax, RIX + ID + day + virus + antigen + cohort + assay_date ~ isotype,mean,value.var='halfmax')
-write.csv(wide.halfmax,"halfmax_by_isotype.csv",row.names=F)
+write.csv(wide.halfmax,"data_bin/halfmax_by_isotype.csv",row.names=F)
 
 # #### look for messed up duplicates ####
 # dup=which(duplicated(lowestdil[c("RIX","ID","day","isotype")]) | 
@@ -182,7 +182,7 @@ data1=data1[-ncol(data1)]
 
 #cast back into wide format based on isotype
 wide.lastpos=dcast(lastpos, RIX + ID + day + virus + antigen + cohort + assay_date ~ isotype,mean,value.var='last_positive')
-write.csv(wide.lastpos,"last_positive_by_isotype.csv",row.names=F)
+write.csv(wide.lastpos,"data_bin/last_positive_by_isotype.csv",row.names=F)
 
 # #### look for messed up duplicates ####
 # dup=which(duplicated(lowestdil[c("RIX","ID","day","isotype")]) | 
@@ -192,7 +192,7 @@ write.csv(wide.lastpos,"last_positive_by_isotype.csv",row.names=F)
 # write.csv(lowestdil.dup,"lastpos_duplicated.csv",row.names=F)
 
 # maybe useful to have merged last pos and lp data together?
-hm.lp=merge(halfmax,lastpos)
+# hm.lp=merge(halfmax,lastpos)
 
 ### cleanup ###
 rm(CC_names,data1.inf,data1.nomocks,infections,RIX_CC,
