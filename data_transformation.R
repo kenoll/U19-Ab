@@ -1,5 +1,5 @@
 #### setup: load libraries, data format, etc ####
-setwd("~/Dropbox/Heise/ELISA Antibody/")
+setwd("~/Dropbox/Heise/U19-Ab/")
 
 #load libraries 
 library(ggplot2)
@@ -8,16 +8,17 @@ library(MASS)
 ##### AUC #####
 
 #load in data to map in wide format
-load("wideauc.Rdata")
+load("data_bin/wideauc.Rdata")
 wideauc$RIX=as.factor(wideauc$RIX)
 full.dat<-wideauc
 
 #set list of anitbody isotypes in the column order they appear in
 abs=c("IgG1" ,  "IgG2ac" , "IgG2b" , "IgG3" ,  "IgM"  ,  "TotalG")
 
-col.list=c("RIX" , "ID" , "day" , "assay_date", "IgG1" ,"IgG2ac","IgG2b" ,    
-           "IgG3","IgM","TotalG")
+col.list=colnames(wideauc)
 
+#number of header columns before data
+hc=7
 
 ###### visualize data and transform as necessary (individually by timepoint) #####
 ## plot data distribution and transform as necessary
@@ -31,7 +32,7 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -40,7 +41,7 @@ for(i in 1:6)
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -48,50 +49,50 @@ for(i in 1:6)
 }
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype, base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)<-col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)<-col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 ##D7 Transformations
 #log transform all
-dat.7=cbind(Trans.dat[c(1:10)])
+dat.7=cbind(dat.log[c(1:13)])
 dat.7=dat.7[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.7[,i+4]
+  phenotype<-dat.7[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -106,13 +107,13 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -121,39 +122,39 @@ for(i in 1:6)
 
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype, base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)<-col.list
 
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)<-col.list
 
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -164,14 +165,16 @@ for(i in 1:6)
 #IgG3 = log
 #IgM = log
 #TotalG = none
-dat.10=cbind(dat[c(1:4,10)],Trans.dat[c(5,8,9)])
-dat.10=cbind(dat.10,Trans.dat.2[c(6,7)])
+dat.10=dat[1:hc]
+dat.10=cbind(dat.10,dat["TotalG"])  
+dat.10=cbind(dat.10,dat.log[c("IgG1","IgG3","IgM")])
+dat.10=cbind(dat.10,dat.sqrt[c("IgG2ac","IgG2b")])
 dat.10=dat.10[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.10[,i+4]
+  phenotype<-dat.10[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -186,7 +189,7 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -195,42 +198,42 @@ for(i in 1:6)
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype,base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -243,14 +246,16 @@ for(i in 1:6)
 #IgM = log
 #TotalG = none
 
-dat.15=cbind(dat[c(1:4,6,10)],Trans.dat[c(9)])
-dat.15=cbind(dat.15,Trans.dat.2[c(5,7,8)])
+dat.15=dat[1:hc]
+dat.15=cbind(dat.15,dat[c("IgG2ac","TotalG")])
+dat.15=cbind(dat.15,dat.log["IgM"])
+dat.15=cbind(dat.15,dat.sqrt[c("IgG1","IgG2b","IgG3")])
 dat.15=dat.15[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.15[,i+4]
+  phenotype<-dat.15[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -265,7 +270,7 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -274,61 +279,61 @@ for(i in 1:6)
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype, base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)=col.list
 
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like square transformed - more normal?
-Trans.dat.3<-dat[,1:4]
+dat.sq2<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-(phenotype)^2
-  Trans.dat.3<-cbind(Trans.dat.3, l.phenotype)
+  dat.sq2<-cbind(dat.sq2, l.phenotype)
 }
-colnames(Trans.dat.3)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sq2)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.3[,i+4]
+  phenotype<-dat.sq2[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -340,15 +345,17 @@ for(i in 1:6)
 #IgG3 = sqrt
 #IgM = log
 #TotalG = square
-dat.45=cbind(dat[c(1:4,7)],Trans.dat[9])
-dat.45=cbind(dat.45,Trans.dat.2[c(5,8)])
-dat.45=cbind(dat.45,Trans.dat.3[c(6,10)])
+dat.45=dat[1:hc]
+dat.45=cbind(dat.45,dat["IgG2b"])
+dat.45=cbind(dat.45,dat.log["IgM"])
+dat.45=cbind(dat.45,dat.sqrt[c("IgG1","IgG3")])
+dat.45=cbind(dat.45,dat.sq2[c("IgG2ac","TotalG")])
 dat.45=dat.45[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.45[,i+4]
+  phenotype<-dat.45[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -362,7 +369,7 @@ dat=dat.45
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   qqnorm(phenotype, main=abs[i])
 }
 
@@ -370,17 +377,17 @@ for(i in 1:6)
 sha.p=NULL
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   s.p=shapiro.test(phenotype)$p.value
   sha.p <- rbind(sha.p, s.p)
 }
-rownames(sha.p)=col.list[5:10]
+rownames(sha.p)=col.list[(hc+1):ncol(dat)]
 sha.p
 
 
 
 
-
+###########
 
 
 
@@ -411,7 +418,7 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -420,7 +427,7 @@ for(i in 1:6)
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   phenotype[phenotype==0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
@@ -429,50 +436,50 @@ for(i in 1:6)
 }
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype, base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 ##D7 Transformations
 #log transform but totalG, which gets sqrt
-dat.7=cbind(Trans.dat[c(1:9)],Trans.dat.2[10])
+dat.7=cbind(dat.log[c(1:9)],dat.sqrt[10])
 
 dat.7=dat.7[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.7[,i+4]
+  phenotype<-dat.7[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -495,13 +502,13 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -510,39 +517,39 @@ for(i in 1:6)
 
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype, base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)=col.list
 
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)=col.list
 
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -553,14 +560,14 @@ for(i in 1:6)
 #IgG3 = log
 #IgM = log
 #TotalG = none
-dat.10=cbind(dat[c(1:4,10)],Trans.dat[c(5,8,9)])
-dat.10=cbind(dat.10,Trans.dat.2[c(6,7)])
+dat.10=cbind(dat[c(1:4,10)],dat.log[c(5,8,9)])
+dat.10=cbind(dat.10,dat.sqrt[c(6,7)])
 dat.10=dat.10[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.10[,i+4]
+  phenotype<-dat.10[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -575,7 +582,7 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -584,42 +591,42 @@ for(i in 1:6)
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype,base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -632,14 +639,14 @@ for(i in 1:6)
 #IgM = log
 #TotalG = none
 
-dat.15=cbind(dat[c(1:4,6,10)],Trans.dat[c(9)])
-dat.15=cbind(dat.15,Trans.dat.2[c(5,7,8)])
+dat.15=cbind(dat[c(1:4,6,10)],dat.log[c(9)])
+dat.15=cbind(dat.15,dat.sqrt[c(5,7,8)])
 dat.15=dat.15[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.15[,i+4]
+  phenotype<-dat.15[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
@@ -654,7 +661,7 @@ par(mfrow = c(2,3))
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
@@ -663,61 +670,61 @@ for(i in 1:6)
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 #see what they look like log transformed - more normal?
-Trans.dat<-dat[,1:4]
+dat.log<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-log(phenotype, base=10)
-  Trans.dat<-cbind(Trans.dat, l.phenotype)
+  dat.log<-cbind(dat.log, l.phenotype)
 }
-colnames(Trans.dat)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.log)=col.list
 
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat[,i+4]
+  phenotype<-dat.log[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like sqrt transformed - more normal?
-Trans.dat.2<-dat[,1:4]
+dat.sqrt<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-sqrt(phenotype)
-  Trans.dat.2<-cbind(Trans.dat.2, l.phenotype)
+  dat.sqrt<-cbind(dat.sqrt, l.phenotype)
 }
-colnames(Trans.dat.2)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sqrt)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.2[,i+4]
+  phenotype<-dat.sqrt[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
 
 #see what they look like square transformed - more normal?
-Trans.dat.3<-dat[,1:4]
+dat.sq2<-dat[,1:hc]
 
 for(i in 1:6)
 {
-  phenotype<-dat[,i+4]
+  phenotype<-dat[,i+hc]
   l.phenotype<-(phenotype)^2
-  Trans.dat.3<-cbind(Trans.dat.3, l.phenotype)
+  dat.sq2<-cbind(dat.sq2, l.phenotype)
 }
-colnames(Trans.dat.3)<-c("RIX","ID","day","assay_date","IgG1","IgG2ac","IgG2b","IgG3","IgM","TotalG")
+colnames(dat.sq2)=col.list
 
 for(i in 1:6)
 {
-  phenotype<-Trans.dat.3[,i+4]
+  phenotype<-dat.sq2[,i+hc]
   hist(phenotype, main=abs[i])
 }
 
@@ -729,15 +736,15 @@ for(i in 1:6)
 #IgG3 = sqrt
 #IgM = log
 #TotalG = square
-dat.45=cbind(dat[c(1:4,7)],Trans.dat[9])
-dat.45=cbind(dat.45,Trans.dat.2[c(5,8)])
-dat.45=cbind(dat.45,Trans.dat.3[c(6,10)])
+dat.45=cbind(dat[c(1:4,7)],dat.log[9])
+dat.45=cbind(dat.45,dat.sqrt[c(5,8)])
+dat.45=cbind(dat.45,dat.sq2[c(6,10)])
 dat.45=dat.45[col.list]
 
 #visualize final data
 for(i in 1:6)
 {
-  phenotype<-dat.45[,i+4]
+  phenotype<-dat.45[,i+hc]
   hist(phenotype, main=abs[i],col="lavender")
 }
 
