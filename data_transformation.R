@@ -386,24 +386,17 @@ sha.p
 
 
 
-
-###########
-
-
-
-
 ###### LAST POSITIVE (>0.2) #######
 
 #load in data to map in wide format
-load("wide.lastpos.Rdata")
+load("data_bin/wide.lastpos.Rdata")
 full.dat<-wide.lastpos
 full.dat$RIX=as.factor(full.dat$RIX)
 
 #set list of anitbody isotypes in the column order they appear in
 abs=c("IgG1" ,  "IgG2ac" , "IgG2b" , "IgG3" ,  "IgM"  ,  "TotalG")
 
-col.list=c("RIX" , "ID" , "day" , "assay_date", "IgG1" ,"IgG2ac","IgG2b" ,    
-           "IgG3","IgM","TotalG")
+col.list=colnames(full.dat)
 
 
 ###### visualize data and transform as necessary (individually by timepoint) #####
@@ -472,8 +465,9 @@ for(i in 1:6)
 
 ##D7 Transformations
 #log transform but totalG, which gets sqrt
-dat.7=cbind(dat.log[c(1:9)],dat.sqrt[10])
-
+dat.7=dat[1:hc]
+dat.7=cbind(dat.7,dat.log[c("IgG1","IgG2ac","IgG2b","IgG3","IgM")])
+dat.7=cbind(dat.7,dat.sqrt["TotalG"])
 dat.7=dat.7[col.list]
 
 #visualize final data
@@ -484,12 +478,6 @@ for(i in 1:6)
 }
 
 write.csv(dat.7,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d7/dat.7.lastpos.csv",sep=""),row.names=F)
-
-
-
-
-
-
 
 
 ##
@@ -510,6 +498,7 @@ for(i in 1:6)
 {
   phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
+  phenotype[phenotype==0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
   print(bc$x[which.max(bc$y)])
@@ -560,8 +549,10 @@ for(i in 1:6)
 #IgG3 = log
 #IgM = log
 #TotalG = none
-dat.10=cbind(dat[c(1:4,10)],dat.log[c(5,8,9)])
-dat.10=cbind(dat.10,dat.sqrt[c(6,7)])
+dat.10=dat[1:hc]
+dat.10=cbind(dat.10,dat["TotalG"])  
+dat.10=cbind(dat.10,dat.log[c("IgG1","IgG3","IgM")])
+dat.10=cbind(dat.10,dat.sqrt[c("IgG2ac","IgG2b")])
 dat.10=dat.10[col.list]
 
 #visualize final data
@@ -571,7 +562,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.10,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d10/dat.10.csv",sep=""),row.names=F)
+write.csv(dat.10,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d10/dat.10.lastpos.csv",sep=""),row.names=F)
 
 #### day 15 ####
 
@@ -584,6 +575,7 @@ for(i in 1:6)
 {
   phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
+  phenotype[phenotype==0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
   print(bc$x[which.max(bc$y)])
@@ -631,16 +623,39 @@ for(i in 1:6)
 }
 
 
+#see what they look like sq^2 transformed - more normal?
+dat.sq2<-dat[,1:hc]
+
+for(i in 1:6)
+{
+  phenotype<-dat[,i+hc]
+  l.phenotype<-(phenotype)^2
+  dat.sq2<-cbind(dat.sq2, l.phenotype)
+}
+colnames(dat.sq2)=col.list
+
+for(i in 1:6)
+{
+  phenotype<-dat.sqrt[,i+hc]
+  hist(phenotype, main=abs[i])
+}
+
+
+
+
 ##D15 Transformations
 #IgG1 = sqrt
-#IgG2ac = none
-#IgG2b = sqrt
+#IgG2ac = square
+#IgG2b = none
 #IgG3 = sqrt
 #IgM = log
-#TotalG = none
+#TotalG = square
 
-dat.15=cbind(dat[c(1:4,6,10)],dat.log[c(9)])
-dat.15=cbind(dat.15,dat.sqrt[c(5,7,8)])
+dat.15=dat[1:hc]
+dat.15=cbind(dat.15,dat[c("IgG2b")])
+dat.15=cbind(dat.15,dat.log["IgM"])
+dat.15=cbind(dat.15,dat.sqrt[c("IgG1","IgG3")])
+dat.15=cbind(dat.15,dat.sq2[c("IgG2ac","TotalG")])
 dat.15=dat.15[col.list]
 
 #visualize final data
@@ -650,7 +665,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.15,paste("~/Dropbox/Heise/ELISA Antibody/qtls/d15/dat.15.csv",sep=""),row.names=F)         
+write.csv(dat.15,paste("~/Dropbox/Heise/ELISA Antibody/qtls/d15/dat.15.lastpos.csv",sep=""),row.names=F)         
 
 
 #### day 45 ####
@@ -663,6 +678,7 @@ for(i in 1:6)
 {
   phenotype<-dat[,i+hc]
   phenotype[phenotype<0] <- 0.00000000001
+  phenotype[phenotype==0] <- 0.00000000001
   lm.bc=lm(phenotype~RIX,data=dat)
   bc=boxcox(lm.bc)
   print(bc$x[which.max(bc$y)])
@@ -732,13 +748,14 @@ for(i in 1:6)
 #D45 Transformations
 #IgG1 = sqrt
 #IgG2ac = square
-#IgG2b = none
+#IgG2b = square
 #IgG3 = sqrt
 #IgM = log
 #TotalG = square
-dat.45=cbind(dat[c(1:4,7)],dat.log[9])
-dat.45=cbind(dat.45,dat.sqrt[c(5,8)])
-dat.45=cbind(dat.45,dat.sq2[c(6,10)])
+dat.45=dat[1:hc]
+dat.45=cbind(dat.45,dat.log["IgM"])
+dat.45=cbind(dat.45,dat.sqrt[c("IgG1","IgG3")])
+dat.45=cbind(dat.45,dat.sq2[c("IgG2ac","IgG2b","TotalG")])
 dat.45=dat.45[col.list]
 
 #visualize final data
@@ -748,4 +765,4 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.45,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d45/dat.45.auc.csv",sep=""),row.names=F)
+write.csv(dat.45,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d45/dat.45.lastpos.csv",sep=""),row.names=F)
