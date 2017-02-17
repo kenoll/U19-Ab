@@ -96,7 +96,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.7,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d7/dat.7.auc.csv",sep=""),row.names=F)
+write.csv(dat.7,file=paste("~/Dropbox/Heise/U19-Ab/data_bin/d7/dat.7.auc.csv",sep=""),row.names=F)
 
 
 #### day 10 ####
@@ -178,7 +178,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.10,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d10/dat.10.auc.csv",sep=""),row.names=F)
+write.csv(dat.10,file=paste("~/Dropbox/Heise/U19-Ab/data_bin/d10/dat.10.auc.csv",sep=""),row.names=F)
 
 #### day 15 ####
 
@@ -259,7 +259,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.15,paste("~/Dropbox/Heise/ELISA Antibody/qtls/d15/dat.15.auc.csv",sep=""),row.names=F)         
+write.csv(dat.15,paste("~/Dropbox/Heise/U19-Ab/data_bin/d15/dat.15.auc.csv",sep=""),row.names=F)         
 
 
 #### day 45 ####
@@ -359,7 +359,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.45,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d45/dat.45.auc.csv",sep=""),row.names=F)
+write.csv(dat.45,file=paste("~/Dropbox/Heise/U19-Ab/data_bin/d45/dat.45.auc.csv",sep=""),row.names=F)
 
 
 
@@ -477,7 +477,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.7,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d7/dat.7.lastpos.csv",sep=""),row.names=F)
+write.csv(dat.7,file=paste("~/Dropbox/Heise/U19-Ab/data_bin/d7/dat.7.lastpos.csv",sep=""),row.names=F)
 
 
 ##
@@ -562,7 +562,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.10,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d10/dat.10.lastpos.csv",sep=""),row.names=F)
+write.csv(dat.10,file=paste("~/Dropbox/Heise/U19-Ab/data_bin/d10/dat.10.lastpos.csv",sep=""),row.names=F)
 
 #### day 15 ####
 
@@ -665,7 +665,7 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.15,paste("~/Dropbox/Heise/ELISA Antibody/qtls/d15/dat.15.lastpos.csv",sep=""),row.names=F)         
+write.csv(dat.15,paste("~/Dropbox/Heise/U19-Ab/data_bin/d15/dat.15.lastpos.csv",sep=""),row.names=F)         
 
 
 #### day 45 ####
@@ -765,4 +765,4 @@ for(i in 1:6)
   hist(phenotype, main=abs[i],col="lavender")
 }
 
-write.csv(dat.45,file=paste("~/Dropbox/Heise/ELISA Antibody/qtls/d45/dat.45.lastpos.csv",sep=""),row.names=F)
+write.csv(dat.45,file=paste("~/Dropbox/Heise/U19-Ab/data_bin/d45/dat.45.lastpos.csv",sep=""),row.names=F)
