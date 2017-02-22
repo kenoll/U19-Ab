@@ -1,24 +1,22 @@
 #### setup: load libraries, data format, etc ####
-setwd("~/Dropbox/Heise/ELISA Antibody/")
-
-#set date
-run.date="2017_01_30"
-date.to.load="2016_01_16"
+setwd("~/Dropbox/Heise/U19-Ab/")
 
 #load libraries 
 library(ggplot2)
 
 #load in transformed data (see "Antibody data for mapping pipeline.R")
-dat.7=read.csv("~/Dropbox/Heise/ELISA Antibody/qtls/d7/dat.7.csv")
-dat.10=read.csv("~/Dropbox/Heise/ELISA Antibody/qtls/d10/dat.10.csv")
-dat.15=read.csv("~/Dropbox/Heise/ELISA Antibody/qtls/d15/dat.15.csv")
-dat.45=read.csv("~/Dropbox/Heise/ELISA Antibody/qtls/d45/dat.45.csv")
+
+data.type="auc"
+
+dat.7=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d7/dat.7.",data.type,".csv",sep=""))
+dat.10=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d10/dat.10.",data.type,".csv",sep=""))
+dat.15=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d15/dat.15.",data.type,".csv",sep=""))
+dat.45=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d45/dat.45.",data.type,".csv",sep=""))
 
 #set list of anitbody isotypes in the column order they appear in
 abs=c("IgG1" ,  "IgG2ac" , "IgG2b" , "IgG3" ,  "IgM"  ,  "TotalG")
 
-col.list=c("RIX" , "ID" , "day" , "assay_date", "IgG1" ,"IgG2ac","IgG2b" ,    
-           "IgG3","IgM","TotalG")
+col.list=colnames(wideauc)
 
 #### lists ####
 day.list=list(7,10,15,45)
@@ -33,14 +31,14 @@ for(k in 1:4)
   
   for(i in 1:6)
   {
-    phenotype=dat[c(1:4,i+4)]
+    phenotype=dat[c(1:hc,i+hc)]
     phenotype=phenotype[complete.cases(phenotype),]  
     
     g<-ggplot(phenotype, aes_string(x=abs[i],y=paste0("reorder(RIX,",abs[i],")")))
     g+geom_point(aes(colour=assay_date))+theme_classic()+
       labs(title=paste("Day",day.list[[k]],abs[i],sep=" "),y="RIX",x="AUC")
     
-    ggsave(file.path(paste("qtls/d",day,sep=""),paste("b6_pheno_dist_batch_",abs[i],"_d",day.list[[k]],".jpg",sep="")), width=6, height=9)
+    # ggsave(file.path(paste("phenotypes/d",day,sep=""),paste("b6_pheno_dist_batch_",abs[i],"_d",day.list[[k]],".jpg",sep="")), width=6, height=9)
   }
 }
 
@@ -388,6 +386,62 @@ qtl.chr[(which.max(qtl.chr$lod)-20):(which.max(qtl.chr$lod)+20),]
 qtl.chr.sub=subset(qtl.chr,qtl.chr$pos>63 & qtl.chr$pos<75)
 # plot(x=qtl.chr.sub$pos,y=qtl.chr.sub$lod)
 ggplot(qtl.chr.sub, aes(pos, lod))+geom_point()+theme_minimal()
+
+
+
+## to graph QTL scans w/ Mx1 status as covariate
+dat=dat.10
+Map.dat=summaryBy(IgG1+IgG2ac+IgG2b+IgG3+IgM+TotalG ~ 
+                    RIX + day, data=dat, FUN=mean, na.rm=T)
+colnames(Map.dat)[3:8] = gsub(".mean","",colnames(Map.dat[3:8]))
+Map.dat$RIX=as.character(Map.dat$RIX)
+
+#code with Mx1 status - same code as from 2 pheno dist but with score # instead of allele
+Map.dat$RIX=as.character(Map.dat$RIX)
+RIX_sep <- data.frame(do.call("rbind", strsplit(Map.dat$RIX,"x")))
+colnames(RIX_sep)[1:2]=c("dam","sire")
+Map.dat=cbind(RIX_sep,Map.dat)
+mx1=read.csv("~/Dropbox/Heise/CC/mx1_status.csv")
+mx1=mx1[c(1,10)]
+colnames(mx1)[1]="dam"
+Map.dat=merge(Map.dat,mx1)
+colnames(Map.dat)[11]="dam.mx1"
+colnames(mx1)[1]="sire"
+Map.dat=merge(Map.dat,mx1)
+colnames(Map.dat)[12]="sire.mx1"
+# Map.dat=Map.dat[c(1,12,2,11,3:10)]
+Map.dat$mx1.sum=rowSums(Map.dat[c("dam.mx1","sire.mx1")])
+
+Map.dat$Sex="F"
+Map.dat$RIX=as.factor(Map.dat$RIX)
+
+#remove cc057 since mx1 haplotype is heterozygous
+Map.dat=Map.dat[-which(Map.dat$dam=="CC057" | Map.dat$sire=="CC057"),]
+
+row.names(Map.dat)<-Map.dat$RIX
+covar = data.frame(sex=as.numeric(Map.dat$Sex == "F"),mx1=Map.dat$mx1.sum)
+rownames(covar)=rownames(Map.dat)
+
+
+for(i in 1:6)
+{
+  fp=paste("qtls/qtl_scan_mx1_covar_d",day.list[k],"_",pheno,"_",run.date,sep="")
+  pheno=abs[i]
+  png(file.path(paste(fp,".png",sep="")),width=800,height=400)
+  qtl=scanone(pheno=Map.dat, pheno.col=pheno, addcovar=covar, probs=model.probs, K=K, snps=MM_snps)
+  plot(qtl,main=paste(pheno))
+  #     saveRDS(qtl,file.path(paste("qtls/d",day,sep=""),paste("qtl_scan_d",day,"_",abs[i],"_",run.date,".rds",sep="")))
+  save(qtl,file=file.path(paste(fp,".RData",sep="")))
+  dev.off()
+}
+
+
+
+
+
+
+
+
 
 
 #11:70800000-72550000
