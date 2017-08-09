@@ -10,24 +10,42 @@ split.rix=function(df) {
 }
 
 add.stat.base=function(df,locus.score,locus.name) {
-  locus.score=locus.score[c(1,3)]
+  if(any("founders" %in% colnames(locus.score))){
+    locus.score=locus.score[c(colnames(locus.score[1]),"status","founders")]
+    
+    colnames(locus.score)[1]="sire"
+    df=merge(df,locus.score)
+    names(df)[names(df) == 'status']=paste0("sire_",locus.name)
+    names(df)[names(df) == 'founders']=paste0("sire.founder_",locus.name)
+    
+    colnames(locus.score)[1]="dam"
+    df=merge(df,locus.score)
+    names(df)[names(df) == 'status']=paste0("dam_",locus.name)
+    names(df)[names(df) == 'founders']=paste0("dam.founder_",locus.name)
+  } else {
+    locus.score=locus.score[c(colnames(locus.score[1]),"status")]
+    
+    colnames(locus.score)[1]="sire"
+    df=merge(df,locus.score)
+    names(df)[names(df) == 'status']=paste0("sire_",locus.name)
+    
+    colnames(locus.score)[1]="dam"
+    df=merge(df,locus.score)
+    names(df)[names(df) == 'status']=paste0("dam_",locus.name)
+  }
   
-  colnames(locus.score)[1]="sire"
-  df=merge(df,locus.score)
-  names(df)[names(df) == 'status']=paste0("sire.",locus.name)
-  
-  colnames(locus.score)[1]="dam"
-  df=merge(df,locus.score)
-  names(df)[names(df) == 'status']=paste0("dam.",locus.name)
-  
-  df$additive=rowSums(df[c(paste0("dam.",locus.name),paste0("sire.",locus.name))])
+  df$additive=rowSums(df[c(paste0("dam_",locus.name),paste0("sire_",locus.name))])
   df$additive=as.character(df$additive)
   df$additive=as.factor(df$additive)
-  names(df)[names(df) == 'additive']=paste0("add.",locus.name)
+  names(df)[names(df) == 'additive']=paste0("add_",locus.name)
+  
+  labels <- apply(df[,c(paste0("dam_",locus.name),paste0("sire_",locus.name))], 1, sort)
+  df$combo<- factor(apply(labels, 2, function(x) paste(x, collapse="_")))
+  names(df)[names(df) == 'combo']=paste0("combo_",locus.name)
   
   return(df)
-}
-
+  }
+  
 
 add.stat.gene=function(df,locus.score,locus.name) {
   if(any("RIX" %in% colnames(df)) && any(!("dam" %in% colnames(df)))) {
@@ -57,3 +75,4 @@ add.stat.mx1 = function(df,locus.score,locus.name,cast.score=0.5){
 
   add.stat.gene(df,locus.score=mx1.score,locus.name="mx1")
 }
+
