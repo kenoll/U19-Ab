@@ -10,6 +10,7 @@ mosaics$strain=gsub("/.+","",mosaics$strain)
 chrom=1
 start=38509260
 end=40243410
+locus.name="chr1"
 
 #strain scores
 strain.scores=c(

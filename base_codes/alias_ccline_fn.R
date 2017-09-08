@@ -2,6 +2,7 @@ CC_names=read.csv("~/Dropbox/Heise/CC/cc_names.csv")
   CC_names[1:2] = sapply(CC_names[1:2], as.character)
 
 alias.to.line=function(df){
+  df$RIX=as.character(df$RIX)
   RIX_names <- data.frame(do.call("rbind", strsplit(df$RIX,"x")))
   RIX_names[,1] = gsub("X","",RIX_names[,1])
   RIX_names[1:2] = sapply(RIX_names[1:2], as.character)

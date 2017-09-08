@@ -34,7 +34,6 @@ inheritance.model="additive"
 response.var="lowest.weight"
 
 g=ggplot(pheno, aes_string(inheritance.model,response.var))
-
 g+labs(x=paste("Allele Score at QTL under",inheritance.model,"model",sep=" "),y=paste(response.var))+
   geom_jitter(width=0.2,aes_string(colour = inheritance.model))+theme_minimal()+theme(legend.position='none')
 

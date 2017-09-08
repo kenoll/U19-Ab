@@ -1,5 +1,6 @@
 library(doBy)
 library(dplyr)
+library(ggplot2)
 
 setwd("~/Dropbox/Heise/U19-Ab/")
 
@@ -9,7 +10,9 @@ mice="RIX" #or "line" or "strain" or whatever your column is called
 
 #get allele scores (and mx1 status)
 score=get.haplos2(chrom,start,end)
-pheno=add.stat.gene(pheno,score,"chr1") #will duplicate individuals if their strain has a recombination/is heterozygous and you use gethaplos instead of gethaplos2
+locus.name="chr1"
+
+pheno=add.stat.gene(pheno,score,locus.name) #will duplicate individuals if their strain has a recombination/is heterozygous and you use gethaplos instead of gethaplos2
 pheno=add.stat.mx1(pheno)
 
 #get table of pairwise founder combinations (for RIX data)
@@ -73,9 +76,13 @@ colnames(pheno.avg)[(length(pheno.avg)-length(preserve.vars)+1):length(pheno.avg
 
 
 g=ggplot(pheno.avg, aes_string(inheritance.model,response.var))
+
+
 g+labs(x=paste("Allele Score under",inheritance.model,"model",sep=" "),y=paste(response.var))+
   geom_jitter(width=0.2,aes_string(colour = preserve.scores[1]))+theme_minimal()+
-  ggtitle(paste("strain averages:",inheritance.model,"on",response.var,"grouped by",facet.var,sep=" "))
+  ggtitle(paste("strain averages:",inheritance.model,"on",response.var,"grouped by",facet.var,sep=" ")) +
+  guides(color=guide_legend(title="Mx1 allele combination")) +
+  facet_wrap(facet.var) + theme(legend.position = "none")
 
 ## mx1 subset only
 haplotype="0_0"

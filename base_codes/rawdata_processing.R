@@ -3,6 +3,7 @@ library(dplyr)
 library(reshape2)
 library(tidyr)
 library(flux)
+library("data.table")
 
 #### getting started ####
 #load file and make first column (dilutions) the row name
@@ -10,7 +11,7 @@ library(flux)
 #the bottom row is the dates on which the ELISAs were run
 #samples with wonky curves have been removed manually already (as per QC graphs at the end of the file)
 setwd("~/Dropbox/Heise/U19-Ab/")
-data1<-read.csv("data_bin/raw_platereader_formatted.csv")
+data1<-as.data.frame(fread("antibody/data_bin/raw_platereader_formatted.csv",stringsAsFactors=FALSE, header=TRUE,sep=","))
 
 #make dilutions row names
 data1 = data.frame(data1[,-1], row.names=data1[,1])

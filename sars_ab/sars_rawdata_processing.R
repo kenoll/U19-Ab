@@ -1,124 +1,69 @@
-#### loads ####
+#### SETUP ####
+
+# load required packages
 library(dplyr)
 library(reshape2)
 library(tidyr)
 library(flux)
 library("data.table")
 
-
-#### getting started ####
-#load file and make first column (dilutions) the row name
-#the loaded data file has the first colum as the dilution vales
-#the bottom row is the dates on which the ELISAs were run
-#samples with wonky curves have been removed manually already (as per QC graphs at the end of the file)
+#set working directory
 setwd("~/Dropbox/Heise/U19-Ab/sars_ab/")
-data1 <- as.data.frame(fread("data_bin/SARS_1_1000.csv",stringsAsFactors=FALSE, header=TRUE,sep=","))
-dilution=1000
 
-#make dilutions row names
-data1 = data.frame(data1[,-1], row.names=data1[,1])
 
-#convert absorbance data to numeric values
-# data1[1:length(data1)] = sapply(data1[1:length(data1)], as.character)
 
-#### Add infection status (Flu vs. Mock) and change RIX names to CC numbers ####
-data1[9,]=colnames(data1)
-data1=data1[c(9,1:8),]
-data1=as.data.frame(t(data1))
-colnames(data1)[1]="ID"
+#### INPUT DATA ####
 
-#####
-# data1=separate(data1,ID,into=c("RIX","ID","day","isotype"),sep="_",extra="drop")
+#load in data file in wide plate format with first column as dilution value
+#fread function in data.table package reads in faster than read.csv
+data1000 <- as.data.frame(fread("data_bin/SARS_1_1000.csv",stringsAsFactors=FALSE, header=TRUE,sep=","))
+data100 <- as.data.frame(fread("data_bin/SARS_1_100.csv",stringsAsFactors=FALSE, header=TRUE,sep=","))
+
+#convert wide plate format to long table
+data100=plates.to.table(data100)
+data1000=plates.to.table(data1000)
+
+#add in empty columns for missing dilutions to 100 and 1000 data frames so they are the same across both
+#bind data frames
+data100$X_1000000=NA
+data100$X_3000000=NA
+data1000$X_100=NA
+data1000$X_300=NA
+data1=rbind(data100,data1000)
+
+#provide information for data table structure
+ndil=10 #number of different dilutions
+hc=7    #number of 'header columns' (sample ID and isotype information before absorbance values)
+
+#create table index of dilution factors used and corresponding indeces
+#the first value "1" is an arbitrary placeholder used later for a value below the limit of detection
+dilutions=c("1","100","300","1000","3000","10000","30000","100000","300000","1000000","3000000")
+dilutions.index=c(0,1,2,3,4,5,6,7,8,9,10)
+dilframe=data.frame(dilutions.index,dilutions)
+
+#separate sample information into multiple columns
 data1=separate(data1,ID,into=c("RIX","ID","day","isotype"),sep="_",extra="merge")
 data1=separate(data1,isotype,into=c("isotype","virus","antigen"),sep="_")
 
+#remove B6 control sera into a separate data frame
 controls=data1[data1$ID %in% "B6",]
 data1=anti_join(data1,controls)
 
-# data1$virus=gsub("Flu","Influenza",data1$virus)
-
-### infection status ###
-#add virus infection status and remove mocks
-#NOTE: deletes all rows for which there is no data about infection status
-
-# infections=read.csv("~/Dropbox/Heise/weight_loss/weights_2016_10.csv")
-# infections=infections[c(1,2,7,6,5,3)]
-# colnames(infections)=c("RIX","ID","day","virus","cohort","RIX_ID")
-# write.csv(infections,"infection_status.csv",row.names=F)
-# #manually concatenated in excel to add X in front of RIX to merge w/ ELISA data structure
-
-# infections=read.csv("data_bin/infection_status.csv")
-# 
-# # infections=read.csv("infection_status.csv")
-# 
-# data1.inf=merge(data1,infections,all.x=T)
-# data1.inf=data1.inf[c(1:2,18,3,16:17,4:7,8:15)]
-# data1.inf=subset(data1.inf,data1.inf$RIX!="AntiCA04" & data1.inf$RIX!="B6xB6")
-# 
-# ##pull out rows w/ no attached infection status to further examine
-# data1.novirus=data1.inf[is.na(data1.inf$virus),]
-# data1.novirus=subset(data1.novirus,data1.novirus$isotype=="IgG2ac")
-# # write.csv(data1.novirus, "no_virus_info.csv",row.names=F)
-# 
-# 
-# ##remove mocks
-# data1.nomocks=subset(data1.inf,data1.inf$virus=="Influenza")
-# data1=data1.nomocks
-
-
-#### convert to CC names ####
+#convert to new CC names
 data1$alias=data1$RIX
-data1=data1[c(1,15,2:14)]
+data1=data1[c(1,length(data1),2:(length(data1)-1))]
 data1=alias.to.line(data1)
 
-#make sure all are numeric
-hc=7
+#convert absorbance values to numeric
 data1[(hc+1):length(data1)] = sapply(data1[(hc+1):length(data1)], as.character)
 data1[(hc+1):length(data1)] = sapply(data1[(hc+1):length(data1)], as.numeric)
 
-#### Calculate AUC ####
-
-#make vector for dilutions to do calculations with later
-# dilutions=c(1/100,1/300,1/1000,1/3000,1/10000,1/30000,1/100000,1/300000)
-dilutions=c(1/1000,1/3000,1/10000,1/30000,1/100000,1/300000,1/1000000,1/3000000)
-
-dilutions=abs(log10(dilutions))
-
-#make a new row in the df to populate with AUC data
-newcol = 0
-data1 = cbind(data1,newcol)
-
-#calculate AUC and add to data frame in last row
-for(i in 1:nrow(data1))
-{
-  data1[i,ncol(data1)]<-auc(dilutions, data1[i,(ncol(data1)-8):(ncol(data1)-1)])
-}
-
-# data1[length(data1)]=apply(data1[8:15],1,auc(dilutions))
-
-
-
-#create new DF with sample IDs and AUC data only and export
-colnames(data1)[ncol(data1)]="AUC"
-aucdata=data1[c(1:hc,ncol(data1))]
-write.csv(aucdata,paste0("data_bin/SARS_",dilution,"_AUC_data.csv"),row.names=F)
-
-#remove AUC from data
-data1=data1[1:(ncol(data1)-1)]
-
-# #pull out duplicates to examine for QC
-# dup.auc=which(duplicated(aucdata[c("RIX","ID","day","isotype")]) | 
-#                 duplicated(aucdata[c("RIX","ID","day","isotype")], fromLast = TRUE))
-# aucdata.dup=aucdata[dup.auc,]
-# aucdata.dup=aucdata.dup[order(aucdata.dup$RIX,aucdata.dup$ID,aucdata.dup$day,aucdata.dup$isotype),]
-# 
-# # write.csv(aucdata.dup,"AUC_duplicated.csv",row.names=F)
-
-# cast back into wide format based on isotype
-# will average out any duplicate values (e.g. same sample run different days)
-
-wideauc=dcast(aucdata, RIX + alias + ID + day + virus + antigen ~ isotype,mean,value.var='AUC')
-write.csv(wideauc,paste0("data_bin/SARS_",dilution,"_AUC_by_isotype.csv"),row.names=F)
+#remove duplicates (repeated samples) until clarified
+dups=which(duplicated(data1[c("RIX","ID","day","isotype","antigen")]) |
+                duplicated(data1[c("RIX","ID","day","isotype","antigen")], fromLast = TRUE))
+dups=data1[dups,]
+dups=dups[order(dups$RIX,dups$ID,dups$day,dups$isotype,dups$antigen),]
+data1=anti_join(data1,dups)
 
 
 
@@ -133,32 +78,39 @@ dilfind=function(x){
   which.min(x)
   }
 
-#apply over each column of the data frame
-lowestdil=NULL
-lowestdil=apply(data1[8:15],1,dilfind)
+#apply dilfind function over each column of the data frame
+dil=NULL
+dil=apply(data1[(ncol(data1)-ndil+1):(ncol(data1))],1,dilfind)
 
 #if the row with the lowest dilution has a value less than threshold, replace that row index with 0
 #using "0" instead of NA to distinguish between sample not run
 for (i in 1:nrow(data1)){
-  if(data1[i,(lowestdil[[i]]+7)]<1.75)
-  {lowestdil[[i]]=0}}
+  if(data1[i,(dil[[i]]+hc)]<1.75)
+  {dil[[i]]=0}}
 
-#export data
-data1[(ncol(data1)+1)]=lowestdil
+#create new dataframe with halfmax values
+data1[(ncol(data1)+1)]=dil
 colnames(data1)[(ncol(data1))]="halfmax"
-halfmax=data1[c(1:7,ncol(data1))]
+halfmax=data1[c(1:hc,ncol(data1))]
+
+#drop halfmax from absorbance data
 data1=data1[-ncol(data1)]
+
+#convert halfmax from column index to dilution factor
+colnames(dilframe)[1]=c("halfmax")
+halfmax=merge(halfmax,dilframe,all=T)
+halfmax=halfmax[-1]
+colnames(halfmax)[length(halfmax)]=c("halfmax")
+halfmax = halfmax[order(halfmax$RIX),]
+
+#convert halfmax data to numeric
+halfmax$halfmax= as.character(halfmax$halfmax)
+halfmax$halfmax= as.numeric(halfmax$halfmax)
 
 #cast back into wide format based on isotype
 wide.halfmax=dcast(halfmax, RIX + alias + ID + day + virus + antigen ~ isotype,mean,value.var='halfmax')
-write.csv(wide.halfmax,paste0("data_bin/SARS_",dilution,"_halfmax_by_isotype.csv"),row.names=F)
+write.csv(wide.halfmax,"data_bin/SARS_halfmax_by_isotype.csv",row.names=F)
 
-# #### look for messed up duplicates ####
-# dup=which(duplicated(lowestdil[c("RIX","ID","day","isotype")]) | 
-#             duplicated(lowestdil[c("RIX","ID","day","isotype")], fromLast = TRUE))
-# lowestdil.dup=lowestdil[dup,]
-# lowestdil.dup=lowestdil.dup[order(lowestdil.dup$RIX,lowestdil.dup$day,lowestdil.dup$isotype,lowestdil.dup$ID),]
-# write.csv(lowestdil.dup,"halfmax_duplicated.csv",row.names=F)
 
 
 #### LAST POSITIVE (absorbance > 0.2) ####
@@ -169,43 +121,44 @@ write.csv(wide.halfmax,paste0("data_bin/SARS_",dilution,"_halfmax_by_isotype.csv
 dilfind=function(x){x[x<0.2] = 5;which.min(x)}
 
 #apply over each column of the data frame
-lowestdil=NULL
-lowestdil=apply(data1[8:ncol(data1)],1,dilfind)
+dil=NULL
+dil=apply(data1[(ncol(data1)-ndil+1):(ncol(data1))],1,dilfind)
 
 #if the row with the lowest dilution has a value less than threshold, replace that row index with 0
 #using "0" instead of NA to distinguish between sample not run
 for (i in 1:nrow(data1)){
-  if(data1[i,(lowestdil[[i]]+7)]<0.2)
-  {lowestdil[[i]]=0}}
+  if(data1[i,(dil[[i]]+hc)]<0.2)
+  {dil[[i]]=0}}
 
-#export data
-data1[ncol(data1)]=lowestdil
+#create new data frame with last positive data
+data1[(ncol(data1)+1)]=dil
 colnames(data1)[ncol(data1)]="last_positive"
-lastpos=data1[c(1:7,ncol(data1))]
+lastpos=data1[c(1:hc,ncol(data1))]
+
+#drop last positive from absorbance data
 data1=data1[-ncol(data1)]
+
+#convert last positive value from column index to dilution factor
+colnames(dilframe)[1]=c("last_positive")
+lastpos=merge(lastpos,dilframe,all=T)
+lastpos=lastpos[-1]
+colnames(lastpos)[length(lastpos)]=c("last_positive")
+
+#convert last positive value to numeric
+lastpos$last_positive= as.character(lastpos$last_positive)
+lastpos$last_positive= as.numeric(lastpos$last_positive)
 
 #cast back into wide format based on isotype
 wide.lastpos=dcast(lastpos, RIX + alias + ID + day + virus + antigen ~ isotype,mean,value.var='last_positive')
-write.csv(wide.lastpos,paste0("data_bin/SARS_",dilution,"_lastpos_by_isotype.csv"),row.names=F)
+write.csv(wide.lastpos,paste0("data_bin/SARS_lastpos_by_isotype.csv"),row.names=F)
 
 
-# #### look for messed up duplicates ####
-# dup=which(duplicated(lowestdil[c("RIX","ID","day","isotype")]) | 
-#             duplicated(lowestdil[c("RIX","ID","day","isotype")], fromLast = TRUE))
-# lowestdil.dup=lowestdil[dup,]
-# lowestdil.dup=lowestdil.dup[order(lowestdil.dup$RIX,lowestdil.dup$day,lowestdil.dup$isotype,lowestdil.dup$ID),]
-# write.csv(lowestdil.dup,"lastpos_duplicated.csv",row.names=F)
 
-# maybe useful to have merged last pos and lp data together?
-# hm.lp=merge(halfmax,lastpos)
+#### THE GRANDE FINALE ####
 
-### cleanup ###
-rm(CC_names,data1.inf,data1.nomocks,infections,RIX_CC,
-   RIX_CC_1,RIX_CC_2,RIX_names,data1_CC,newrow,RIX_CC_names)
-# rm(aucdata.dup,lowestdil.dup,halfmax.dup,dup,dup.auc)
-rm(dilutions,data1,data1.novirus)
+#merge long form last positive and half max data
+hm.lp=merge(halfmax,lastpos)
+write.csv(hm.lp,"data_bin/SARS_halfmax_lastpos.csv",row.names=F)
 
-#### save important objects ####
-save(wideauc,file="data_bin/wideauc.Rdata")
-save(wide.lastpos,file="data_bin/wide.lastpos.Rdata")
-save(wide.halfmax,file="data_bin/wide.halfmax.Rdata")
+#clean environment
+rm(data1,data100,data1000,ndil,dil,dilframe,dilutions,dilutions.index,dups)
