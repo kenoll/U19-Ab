@@ -28,7 +28,7 @@ col.list=colnames(dat)
 load("~/Dropbox/Heise/U19-Ab/cc_refs/CCRIXb38F.Rdata") #RIX model probs
 # load("~/Dropbox/Heise/U19-Ab/cc_refs/CCModelProbs.Rdata") #RI model probs
 # load(url("ftp://ftp.jax.org/MUGA/MM_snps.Rdata"))
-load("~/Dropbox/Heise/U19-Ab/cc_refs/MM_snps.Rdata")
+load("~/Dropbox/Heise/CC/cc_refs/MM_snps.Rdata")
 
 model.probs<-model.probs+(1e-20)
 K=kinship.probs(model.probs)
