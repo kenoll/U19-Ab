@@ -1,112 +1,138 @@
 #### loads ####
-library(dplyr)
+# library(dplyr)
 library(reshape2)
 library(tidyr)
 library(flux)
-library("data.table")
+library(dtplyr)
 
 #### getting started ####
 #load file and make first column (dilutions) the row name
 #the loaded data file has the first colum as the dilution vales
 #the bottom row is the dates on which the ELISAs were run
 #samples with wonky curves have been removed manually already (as per QC graphs at the end of the file)
-setwd("~/Dropbox/Heise/U19-Ab/")
-data1<-as.data.frame(fread("antibody/data_bin/raw_platereader_formatted.csv",stringsAsFactors=FALSE, header=TRUE,sep=","))
+setwd("~/Dropbox/Heise/U19-Ab/antibody")
 
-#make dilutions row names
-data1 = data.frame(data1[,-1], row.names=data1[,1])
+# data1=read.csv("data_bin/raw_platereader_2017.csv")
+data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=FALSE, header=TRUE,sep=","))
+  data1=plates.to.table(data1,date=T)
+  data1=separate(data1,ID,into=c("RIX","ID","day","isotype"),sep="_",extra="merge")
+  data1=separate(data1,isotype,into=c("isotype","antigen_virus","antigen"),sep="_")
+  data1$antigen_virus="Influenza"
+  data1$antigen="HA"
+  
+#### split RIX ####
+  data1=split.rix(data1)
+  data1$dam=gsub("X","",data1$dam)
+  
+#set header columns
+  hc=9
 
-#convert absorbance data to numeric values
-data1[1:length(data1)] = sapply(data1[1:length(data1)], as.character)
+### cleanup
+  #remove 16034x13067_45_0 from data bc it's a mock and it has a duplicate ID number that's messing stuff up
+  data1=data1[-which(data1$RIX=="X16034x13067" & data1$ID=="45" & data1$day=="0"),]
 
-#### Add infection status (Flu vs. Mock) and change RIX names to CC numbers ####
-data1[10,]=colnames(data1)
-data1=data1[c(10,9,1:8),]
-data1=as.data.frame(t(data1))
-colnames(data1)[1]="ID"
+  ## get rid of or fix day for 8016x8004_30 (alan wrote in as 0, should be 15 - there already is a sample labeled 15)
+  # data1[which(data1$RIX=="X8016x8004" & data1$ID=="30" & data1$day=="0"),]$day="15"
+  data1=data1[-which(data1$RIX=="X8016x8004" & data1$ID=="30" & data1$day=="0"),]
+  
+  #IgG2ab = IgG2ac
+  data1[which(data1$isotype=="IgG2ab"),]$isotype="IgG2ac"
+  
+  #fix 18018 to 8018
+  data1[which(data1$dam=="18018"),]$dam="8018"
+  
+  #take out controls/negatives/etc
+  data1=subset(data1,data1$RIX!="negxneg" & data1$RIX!="B6xB6" & data1$RIX!="B6.xB6." & data1$RIX!="X129x129" & data1$RIX!="antixanti")
+  
+  #remove samples that have NA across all dilutions (failed run)
+  ind <- apply(data1[(hc+1):(hc+8)], 1, function(x) all(is.na(x)))
+  data1 <- data1[ !ind, ]
+  
+  
+#get rid of the d0 mocks so can bind by day
+data1=data1[-which(data1$day=="0"),]
 
-#####
-# data1=separate(data1,ID,into=c("RIX","ID","day","isotype"),sep="_",extra="drop")
-data1=separate(data1,ID,into=c("RIX","ID","day","isotype"),sep="_",extra="merge")
-data1=separate(data1,isotype,into=c("isotype","antigen_virus","antigen"),sep="_")
-
-# data1$virus=gsub("Flu","Influenza",data1$virus)
-
-### infection status ###
-#add virus infection status and remove mocks
-#NOTE: deletes all rows for which there is no data about infection status
-
-# infections=read.csv("~/Dropbox/Heise/weight_loss/weights_2016_10.csv")
-# infections=infections[c(1,2,7,6,5,3)]
-# colnames(infections)=c("RIX","ID","day","virus","cohort","RIX_ID")
-# write.csv(infections,"infection_status.csv",row.names=F)
-# #manually concatenated in excel to add X in front of RIX to merge w/ ELISA data structure
-
+# ### infection status ###
+#   # add virus infection status and remove mocks
+#   # NOTE: deletes all rows for which there is no data about infection status
+#   infections=read.csv("~/Dropbox/Heise/U19-Ab/weight/weights_2017_05.csv")
+#   infections=infections[c(1,2,7,6,5,3)]
+#   colnames(infections)=c("RIX","ID","day","virus","cohort","RIX_ID")
+#   infections$RIX=paste0("X",infections$RIX)
+#   write.csv(infections,"data_bin/infection_status.csv",row.names=F)
+  
 infections=read.csv("data_bin/infection_status.csv")
 
-# infections=read.csv("infection_status.csv")
+# data1=merge(data1,infections[c(1:2,4:6)],all.x=T) #ignore "day" in infection status bc Alan changed a lot of mock days to 0
+data1=merge(data1,infections,all.x=T)
+data1=data1[c(1:hc,(length(data1)-2):length(data1),(hc+1):(length(data1)-3))]
+hc=hc+3
 
-data1.inf=merge(data1,infections,all.x=T)
-data1.inf=data1.inf[c(1:2,18,3,16:17,4:7,8:15)]
-data1.inf=subset(data1.inf,data1.inf$RIX!="AntiCA04" & data1.inf$RIX!="B6xB6")
-
-##pull out rows w/ no attached infection status to further examine
-data1.novirus=data1.inf[is.na(data1.inf$virus),]
-data1.novirus=subset(data1.novirus,data1.novirus$isotype=="IgG2ac")
-# write.csv(data1.novirus, "no_virus_info.csv",row.names=F)
+#remove mocks
+data1=subset(data1,data1$virus=="Influenza")
 
 
-##remove mocks
-data1.nomocks=subset(data1.inf,data1.inf$virus=="Influenza")
-data1=data1.nomocks
 
+#### QC ####
 
-#### convert to CC names ####
-CC_names=read.csv("~/Dropbox/Heise/CC/cc_names.csv")
-CC_names$Alias=as.character(CC_names$Alias)
-CC_names$CCLine=as.character(CC_names$CCLine)
+##pull out rows w/ no attached infection status to further examine - samples with  no ID #s etc
+  mini.dat=data1[c("RIX","ID","day")]
+  mini.dat=unique(mini.dat)
+  mini.dat$RIX=as.factor(mini.dat$RIX)
+  mini.dat[2:3]=sapply(mini.dat[2:3],as.integer)
+  mini.inf=infections[which(infections$day %in% c(7,10,15,45 & infections$virus=="Influenza")),]
+  mini.inf=mini.inf[c("RIX","ID","day")]
+  
+  novirus=anti_join(mini.dat,mini.inf)
+  noAb=anti_join(mini.inf,mini.dat)
+  
+  rm(mini.dat,mini.inf)
 
-RIX_names <- data.frame(do.call("rbind", strsplit(data1$RIX,"x")))
-RIX_names[,1] = gsub("X","",RIX_names[,1])
-RIX_names[,1]=as.character(RIX_names[,1])
-RIX_names[,2]=as.character(RIX_names[,2])
+#duplicates
+  # table(data1$isotype)
+  data1$isotype=gsub("\\.[[:digit:]]","",data1$isotype)
+  # table(data1$isotype)
+  
+  dup=data1[which(duplicated(data1[c("RIX","ID","day","isotype")]) | 
+                  duplicated(data1[c("RIX","ID","day","isotype")], fromLast = TRUE)),]
 
-RIX_CC_1=data.frame(RI_1=RIX_names$X1, CC_1=CC_names[match(RIX_names$X1, CC_names$Alias),1])
-RIX_CC_2=data.frame(RI_2=RIX_names$X2, CC_2=CC_names[match(RIX_names$X2, CC_names$Alias),1])
+#make sure all are numeric and subtract background
+data1[(length(data1)-7):length(data1)] = sapply(data1[(length(data1)-7):length(data1)], as.character)
+data1[(length(data1)-7):length(data1)] = sapply(data1[(length(data1)-7):length(data1)], as.numeric)
+data1[(length(data1)-7):length(data1)] = data1[(length(data1)-7):length(data1)]-0.04 #generic BG subtraction
+data1[, (length(data1)-7):length(data1)][data1[, (length(data1)-7):length(data1)] < 0] = 0 #make negatives zeroes for AUC
 
-RIX_CC=cbind(RIX_CC_1,RIX_CC_2)
-RIX_CC_names=paste(RIX_CC[,2],RIX_CC[,4],sep="x")
-
-data1[,1]=RIX_CC_names
-data1_CC=as.vector(paste(data1[,1],data1[,2],data1[,3],data1[,4],sep="_"))
-
-#make sure all are numeric
-data1[11:18] = sapply(data1[11:18], as.character)
-data1[11:18] = sapply(data1[11:18], as.numeric)
 
 #### Calculate AUC ####
-
 #make vector for dilutions to do calculations with later
 dilutions=c(1/100,1/300,1/1000,1/3000,1/10000,1/30000,1/100000,1/300000)
 dilutions=abs(log10(dilutions))
 
 #make a new row in the df to populate with AUC data
-newrow = 0
-data1 = cbind(data1,newrow)
+aucdata=data1
+aucdata$AUC=NA
 
 #calculate AUC and add to data frame in last row
-for(i in 1:nrow(data1))
+late=aucdata[which(aucdata$day %in% c("10","15","29","45")),]
+late=late[complete.cases(late[(length(aucdata)-8):(length(aucdata)-1)]),]
+for(i in 1:nrow(late))
 {
-  data1[i,ncol(data1)]<-auc(dilutions, data1[i,(ncol(data1)-8):(ncol(data1)-1)])
+  late[i,ncol(late)]<-auc(dilutions, late[i,(ncol(late)-8):(ncol(late)-1)])
 }  
 
-#create new DF with sample IDs and AUC data only and export
-colnames(data1)[ncol(data1)]="AUC"
-aucdata=data1[c(1:10,ncol(data1))]
-write.csv(aucdata,"data_bin/AUC_data.csv",row.names=F)
+seven=aucdata[which(aucdata$day %in% c("7")),]
+seven=seven[complete.cases(seven[1:(ncol(seven)-5)]),]
+for(i in 1:nrow(seven))
+{
+  seven[i,ncol(seven)]<-auc(dilutions[1:6], seven[i,(ncol(seven)-8):(ncol(seven)-3)])
+}  
 
-#remove AUC from data
-data1=data1[1:(ncol(data1)-1)]
+aucdata=rbind(late,seven)
+rm(late,seven)
+
+#create new DF with sample IDs and AUC data only and export
+aucdata=aucdata[c(1:hc,length(aucdata))]
+write.csv(aucdata,"data_bin/AUC_data.csv",row.names=F)
 
 # #pull out duplicates to examine for QC
 # dup.auc=which(duplicated(aucdata[c("RIX","ID","day","isotype")]) | 
@@ -119,7 +145,7 @@ data1=data1[1:(ncol(data1)-1)]
 # cast back into wide format based on isotype
 # will average out any duplicate values (e.g. same sample run different days)
 
-wideauc=dcast(aucdata, RIX + ID + day + virus + antigen + cohort + assay_date ~ isotype,mean,value.var='AUC')
+wideauc=dcast(aucdata, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='AUC')
 write.csv(wideauc,"data_bin/AUC_by_isotype.csv",row.names=F)
 
 
@@ -128,26 +154,33 @@ write.csv(wideauc,"data_bin/AUC_by_isotype.csv",row.names=F)
 #function takes anything under the threshold and sets it to 5 (arbitrary high number)
 #then uses which.min to pick out the index of the lowest value in that column
 #note: outputs INDEX of row, not actual log dilution value
-dilfind=function(x){x[x<1.75] = 5;which.min(x)}
+dilfind=function(x){
+  x[x<1.75] = 5
+  unname(which.min(x))
+}
 
 #apply over each column of the data frame
-lowestdil=NULL
-lowestdil=apply(data1[11:18],1,dilfind)
+dil=NULL
+dil=apply(data1[,(hc+1):(hc+8)],1,dilfind)
+dil=as.numeric(dil)
 
-#if the row with the lowest dilution has a value less than threshold, replace that row index with 0
+#if the row with the lowest dilution has a value less than threshold
+#replace that row index with 0
 #using "0" instead of NA to distinguish between sample not run
-for (i in 1:nrow(data1)){
-  if(data1[i,(lowestdil[[i]]+10)]<1.75)
-  {lowestdil[[i]]=0}}
+for (i in 1:length(dil)){
+  if(data1[i,(dil[[i]]+hc)]<1.75) {
+    dil[[i]]=0
+  }
+  }
 
 #export data
-data1[(ncol(data1)+1)]=lowestdil
+data1[(ncol(data1)+1)]=dil
 colnames(data1)[(ncol(data1))]="halfmax"
-halfmax=data1[c(1:10,ncol(data1))]
+halfmax=data1[c(1:hc,ncol(data1))]
 data1=data1[-ncol(data1)]
 
 #cast back into wide format based on isotype
-wide.halfmax=dcast(halfmax, RIX + ID + day + virus + antigen + cohort + assay_date ~ isotype,mean,value.var='halfmax')
+wide.halfmax=dcast(halfmax, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='halfmax')
 write.csv(wide.halfmax,"data_bin/halfmax_by_isotype.csv",row.names=F)
 
 # #### look for messed up duplicates ####
@@ -166,23 +199,24 @@ write.csv(wide.halfmax,"data_bin/halfmax_by_isotype.csv",row.names=F)
 dilfind=function(x){x[x<0.2] = 5;which.min(x)}
 
 #apply over each column of the data frame
-lowestdil=NULL
-lowestdil=apply(data1[11:ncol(data1)],1,dilfind)
+dil=NULL
+dil=apply(data1[(length(data1)-7):length(data1)],1,dilfind)
+dil=as.numeric(dil)
 
 #if the row with the lowest dilution has a value less than threshold, replace that row index with 0
 #using "0" instead of NA to distinguish between sample not run
 for (i in 1:nrow(data1)){
-  if(data1[i,(lowestdil[[i]]+10)]<0.2)
-  {lowestdil[[i]]=0}}
+  if(data1[i,(dil[[i]]+hc)]<0.2)
+  {dil[[i]]=0}}
 
 #export data
-data1[ncol(data1)]=lowestdil
+data1[ncol(data1)]=dil
 colnames(data1)[ncol(data1)]="last_positive"
-lastpos=data1[c(1:10,ncol(data1))]
+lastpos=data1[c(1:hc,ncol(data1))]
 data1=data1[-ncol(data1)]
 
 #cast back into wide format based on isotype
-wide.lastpos=dcast(lastpos, RIX + ID + day + virus + antigen + cohort + assay_date ~ isotype,mean,value.var='last_positive')
+wide.lastpos=dcast(lastpos, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='last_positive')
 write.csv(wide.lastpos,"data_bin/last_positive_by_isotype.csv",row.names=F)
 
 # #### look for messed up duplicates ####
@@ -196,12 +230,7 @@ write.csv(wide.lastpos,"data_bin/last_positive_by_isotype.csv",row.names=F)
 # hm.lp=merge(halfmax,lastpos)
 
 ### cleanup ###
-rm(CC_names,data1.inf,data1.nomocks,infections,RIX_CC,
-   RIX_CC_1,RIX_CC_2,RIX_names,data1_CC,newrow,RIX_CC_names)
-# rm(aucdata.dup,lowestdil.dup,halfmax.dup,dup,dup.auc)
-rm(dilutions,data1,data1.novirus)
-
-#### save important objects ####
-save(wideauc,file="data_bin/wideauc.Rdata")
-save(wide.lastpos,file="data_bin/wide.lastpos.Rdata")
-save(wide.halfmax,file="data_bin/wide.halfmax.Rdata")
+# rm(CC_names,data1,data1.nomocks,infections,RIX_CC,
+#    RIX_CC_1,RIX_CC_2,RIX_names,data1_CC,newrow,RIX_CC_names)
+# # rm(aucdata.dup,lowestdil.dup,halfmax.dup,dup,dup.auc)
+# rm(dilutions,data1)
