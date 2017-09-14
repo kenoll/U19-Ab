@@ -1,5 +1,4 @@
 #### loads ####
-# library(dplyr)
 library(reshape2)
 library(tidyr)
 library(flux)
@@ -23,11 +22,11 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
 #### split RIX ####
   data1=split.rix(data1)
   data1$dam=gsub("X","",data1$dam)
-  
+
 #set header columns
   hc=9
 
-### cleanup
+### cleanup data
   #remove 16034x13067_45_0 from data bc it's a mock and it has a duplicate ID number that's messing stuff up
   data1=data1[-which(data1$RIX=="X16034x13067" & data1$ID=="45" & data1$day=="0"),]
 
@@ -48,18 +47,21 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   ind <- apply(data1[(hc+1):(hc+8)], 1, function(x) all(is.na(x)))
   data1 <- data1[ !ind, ]
   
+  #switch to newer CC nomenclature
+  data1=alias.to.line(data1)
   
 #get rid of the d0 mocks so can bind by day
 data1=data1[-which(data1$day=="0"),]
 
 # ### infection status ###
-#   # add virus infection status and remove mocks
-#   # NOTE: deletes all rows for which there is no data about infection status
-#   infections=read.csv("~/Dropbox/Heise/U19-Ab/weight/weights_2017_05.csv")
-#   infections=infections[c(1,2,7,6,5,3)]
-#   colnames(infections)=c("RIX","ID","day","virus","cohort","RIX_ID")
-#   infections$RIX=paste0("X",infections$RIX)
-#   write.csv(infections,"data_bin/infection_status.csv",row.names=F)
+  # # add virus infection status and remove mocks
+  # # NOTE: deletes all rows for which there is no data about infection status
+  # infections=read.csv("~/Dropbox/Heise/U19-Ab/weight/weights_2017_05.csv")
+  # infections=infections[c(1,2,7,6,5,3)]
+  # colnames(infections)=c("RIX","ID","day","virus","cohort","RIX_ID")
+  # infections=alias.to.line(infections)
+  # # infections$RIX=paste0("X",infections$RIX)
+  # write.csv(infections,"data_bin/infection_status.csv",row.names=F)
   
 infections=read.csv("data_bin/infection_status.csv")
 
@@ -70,8 +72,6 @@ hc=hc+3
 
 #remove mocks
 data1=subset(data1,data1$virus=="Influenza")
-
-
 
 #### QC ####
 
