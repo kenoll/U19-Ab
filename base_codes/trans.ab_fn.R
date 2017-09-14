@@ -25,6 +25,7 @@ log.ab=function(df,hc=hc,base=exp(1),num=6){
   for (i in 1:num)
   {
     phenotype<-df[,i+hc]
+    phenotype[phenotype<=0] <- min(subset(phenotype,phenotype>0),na.rm=T)
     trans.phenotype<-log(phenotype,base=base)
     dat.trans<-cbind(dat.trans, trans.phenotype)
   }
@@ -41,14 +42,16 @@ hist.ab=function(df,hc=hc,num=6){
   }
 }
 
-###
-box.ab=function(df,hc=hc,num=6){
-  for(i in 1:num)
-  {
-    phenotype<-df[,i+hc]
-    phenotype[phenotype<=0] <- min(subset(phenotype,phenotype>0),na.rm=T)
-    lm.bc=lm(phenotype~RIX,data=df)
-    bc=boxcox(lm.bc)
-    print(bc$x[which.max(bc$y)])
-  }
-}
+
+
+# ###
+# box.ab=function(df,hc=hc,num=6){
+#   for (i in 1:num){
+#     phenotype<-df[,i+hc]
+#     phenotype[phenotype<=0] <- min(subset(phenotype,phenotype>0),na.rm=T)
+#     lm.bc=lm(phenotype~RIX,data=df)
+#     bc=boxcox(lm.bc)
+#     print(bc$x[which.max(bc$y)])
+#     
+#   }
+# }
