@@ -3,6 +3,7 @@ library(reshape2)
 library(tidyr)
 library(flux)
 library(dtplyr)
+library(doBy)
 
 #### getting started ####
 #load file and make first column (dilutions) the row name
@@ -18,6 +19,12 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   data1=separate(data1,isotype,into=c("isotype","antigen_virus","antigen"),sep="_")
   data1$antigen_virus="Influenza"
   data1$antigen="HA"
+
+#dilutions
+  dilutions=c("10","100","300","1000","3000","10000","30000","100000","300000")
+  dilutions.index=c(0,1,2,3,4,5,6,7,8)
+  dilframe=data.frame(dilutions.index,dilutions)
+  
   
 #### split RIX ####
   data1=split.rix(data1)
@@ -33,6 +40,9 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   ## get rid of or fix day for 8016x8004_30 (alan wrote in as 0, should be 15 - there already is a sample labeled 15)
   # data1[which(data1$RIX=="X8016x8004" & data1$ID=="30" & data1$day=="0"),]$day="15"
   data1=data1[-which(data1$RIX=="X8016x8004" & data1$ID=="30" & data1$day=="0"),]
+  # 
+  # # #IgG2ab are replicates of IgG2ac done on the same day, remove them and don't lose anything
+  # data1=data1[-which(data1$isotype=="IgG2ab"),]
   
   #IgG2ab = IgG2ac
   data1[which(data1$isotype=="IgG2ab"),]$isotype="IgG2ac"
@@ -45,14 +55,65 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   
   #remove samples that have NA across all dilutions (failed run)
   ind <- apply(data1[(hc+1):(hc+8)], 1, function(x) all(is.na(x)))
-  data1 <- data1[ !ind, ]
+    data1 <- data1[ !ind, ]
+    
+  #get rid of the d0 mocks so can bind by day
+  data1=data1[-which(data1$day=="0"),]
+  
+  #examine duplicates
+  data1$isotype=gsub("\\.[[:digit:]]","",data1$isotype)
+  dups=data1[which(duplicated(data1[c("RIX","ID","day","isotype")]) | 
+                      duplicated(data1[c("RIX","ID","day","isotype")], fromLast = TRUE)),]
+  dups=dups[order(dups$RIX,dups$ID,dups$isotype,dups$day),]
+  
+  #remove duplicates from data frame
+  data1=anti_join(data1,dups)
+
+        # #average dups if they have the same isotype and were done on the same day (replicate runs)
+        # dups=summaryBy(X_2+X_2.5+X_3+X_3.5+X_4+X_4.5+X_5+X_5.5 ~ ., data=dups, FUN=mean, na.rm=T)
+        # colnames(dups)=gsub(".mean","",colnames(dups))
+        # fixed=dups[which(!duplicated(dups[c("RIX","ID","day","isotype")]) & 
+        #                    !duplicated(dups[c("RIX","ID","day","isotype")], fromLast = TRUE)),]
+        # 
+        # #merge same day replicates with the original data frame and take them away from duplicate df
+        # data1=rbind(data1,fixed)
+        # dups=anti_join(dups,fixed)
+        # 
+        # dups$assay_date=droplevels(dups$assay_date)
+        # dups=dups[order(dups$RIX,dups$ID,dups$isotype,dups$day),]
+
+  #compare variation between duplicates and merge ones that are close
+  dups.n=aggregate(X_2 ~ dam+sire+RIX+ID+day+isotype+antigen_virus+antigen,data=dups,FUN=length)
+    colnames(dups.n)[length(dups.n)]="n"
+  dups.sd=aggregate(X_2 ~ dam+sire+RIX+ID+day+isotype+antigen_virus+antigen,data=dups,FUN=sd)
+    colnames(dups.sd)[length(dups.sd)]="sd"
+  dups.var = dups %>% merge(dups.sd) %>% merge(dups.n)
+  
+  sd.hist=hist(dups.var$sd)
+    sd.hist=data.frame(sd.hist$breaks[1:(length(sd.hist$breaks)-1)],sd.hist$counts)
+    colnames(sd.hist)=c("sd bin","n")
+  
+  low.sd=dups[which(dups.var$sd<0.4),]
+  low.sd=summaryBy(X_2+X_2.5+X_3+X_3.5+X_4+X_4.5+X_5+X_5.5 ~ 
+                     dam+sire+RIX+ID+day+isotype+antigen_virus+antigen, data=low.sd, FUN=mean, na.rm=T)
+  colnames(low.sd)=gsub(".mean","",colnames(low.sd))
+  low.sd$assay_date="merged"
+  
+  #return merged close duplicates to data frame
+  data1=rbind(data1,low.sd)
+  
+  # #max absorbance variation correction?
+  # od=data1[9:10]
+  # od=summaryBy(X_2~assay_date,data = od,FUN = max,na.rm=T)
+  # od=subset(od,od$X_2.max>3)
+  
+  
+  # test=dups[which(duplicated(dups[c("RIX","ID","day","isotype")]) | 
+                     # duplicated(dups[c("RIX","ID","day","isotype")], fromLast = TRUE)),]
   
   #switch to newer CC nomenclature
   data1=alias.to.line(data1)
   
-#get rid of the d0 mocks so can bind by day
-data1=data1[-which(data1$day=="0"),]
-
 # ### infection status ###
   # # add virus infection status and remove mocks
   # # NOTE: deletes all rows for which there is no data about infection status
@@ -87,14 +148,6 @@ data1=subset(data1,data1$virus=="Influenza")
   noAb=anti_join(mini.inf,mini.dat)
   
   rm(mini.dat,mini.inf)
-
-#duplicates
-  # table(data1$isotype)
-  data1$isotype=gsub("\\.[[:digit:]]","",data1$isotype)
-  # table(data1$isotype)
-  
-  dup=data1[which(duplicated(data1[c("RIX","ID","day","isotype")]) | 
-                  duplicated(data1[c("RIX","ID","day","isotype")], fromLast = TRUE)),]
 
 #make sure all are numeric and subtract background
 data1[(length(data1)-7):length(data1)] = sapply(data1[(length(data1)-7):length(data1)], as.character)
@@ -173,11 +226,16 @@ for (i in 1:length(dil)){
   }
   }
 
-#export data
-data1[(ncol(data1)+1)]=dil
-colnames(data1)[(ncol(data1))]="halfmax"
-halfmax=data1[c(1:hc,ncol(data1))]
-data1=data1[-ncol(data1)]
+#create new halfmax data frame
+halfmax=cbind(data1[1:hc],dil)
+colnames(halfmax)[(ncol(halfmax))]="halfmax"
+
+#convert halfmax value from column index to dilution factor
+colnames(dilframe)[1]=c("halfmax")
+halfmax=merge(halfmax,dilframe,all=T)
+halfmax=halfmax[-1]
+colnames(halfmax)[length(halfmax)]=c("halfmax")
+halfmax$halfmax= halfmax$halfmax %>% as.character %>% as.numeric
 
 #cast back into wide format based on isotype
 wide.halfmax=dcast(halfmax, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='halfmax')
@@ -209,14 +267,20 @@ for (i in 1:nrow(data1)){
   if(data1[i,(dil[[i]]+hc)]<0.2)
   {dil[[i]]=0}}
 
-#export data
-data1[ncol(data1)]=dil
-colnames(data1)[ncol(data1)]="last_positive"
-lastpos=data1[c(1:hc,ncol(data1))]
-data1=data1[-ncol(data1)]
+#create new lastpos data frame
+lastpos=cbind(data1[1:hc],dil)
+colnames(lastpos)[(ncol(lastpos))]="lastpos"
+
+#convert lastpos value from column index to dilution factor
+colnames(dilframe)[1]=c("lastpos")
+lastpos=merge(lastpos,dilframe,all=T)
+lastpos=lastpos[-1]
+colnames(lastpos)[length(lastpos)]=c("lastpos")
+lastpos$lastpos= lastpos$lastpos %>% as.character %>% as.numeric
+
 
 #cast back into wide format based on isotype
-wide.lastpos=dcast(lastpos, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='last_positive')
+wide.lastpos=dcast(lastpos, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='lastpos')
 write.csv(wide.lastpos,"data_bin/last_positive_by_isotype.csv",row.names=F)
 
 # #### look for messed up duplicates ####
