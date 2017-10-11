@@ -4,13 +4,34 @@ library(ggplot2)
 
 setwd("~/Dropbox/Heise/U19-Ab/")
 
-#load in data with phenotype
-pheno=read.csv("weight/peak_weight_loss.csv")
+#set region of interest
+chromo=15
+start=72000000
+end=76230000
+locus.name="chr15"
+
+#set allele effects
+allele.effects=c(
+  A.score=1 ,
+  B.score=1 ,
+  C.score=1 ,
+  D.score=1 ,
+  E.score=1 ,
+  F.score=1 ,
+  G.score=0 ,
+  H.score=2 )
+
+#
+haplos=get.haploscore2(chromo,start,end,allele.effects)
+
+#load in data with phenotype of interest
+pheno=read.csv("antibody/data_bin/AUC_by_isotype.csv")
+pheno=subset(pheno,pheno$day=="7")
 mice="RIX" #or "line" or "strain" or whatever your column is called
 
 #get allele scores (and mx1 status)
-score=get.haplos2(chrom,start,end)
-locus.name="chr1"
+score=get.haplos2(chromo,start,end)
+locus.name="chr17"
 
 pheno=add.stat.gene(pheno,score,locus.name) #will duplicate individuals if their strain has a recombination/is heterozygous and you use gethaplos instead of gethaplos2
 pheno=add.stat.mx1(pheno)
@@ -21,8 +42,9 @@ founder.table
 # write.table(founder.table,"rixtable.csv",sep=",",col.names=NA)
 
 #plot founder alleles vs. phenotype (really only useful for RI data)
-inheritance.model="dam.founder_chr1"
-response.var="lowest.weight"
+inheritance.model="add_chr17"
+response.var="IgG2ac"
+
 
 founder.colors <- c(A="#F0F000", B="#808080", C="#F08080", D="#1010F0", E="#00A0F0", F="#00A000", G="#F00000", H="#9000E0")
 founder.names <- c("AJ", "C57BL6J", "129S1", "NOD", "NZO", "CAST", "PWK", "WSB")
@@ -33,8 +55,8 @@ g+labs(x=paste(inheritance.model),y=paste(response.var))+
   theme_minimal()+theme(legend.position='none')
 
 #plot score based on haplotype vs. phenotype
-inheritance.model="combo_chr1"
-response.var="lowest.weight"
+inheritance.model="add_chr17"
+response.var="IgG2ac"
 facet.var="combo_mx1"
 
 g=ggplot(pheno, aes_string(inheritance.model,response.var))
