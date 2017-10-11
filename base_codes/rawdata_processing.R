@@ -2,8 +2,9 @@
 library(reshape2)
 library(tidyr)
 library(flux)
-library(dtplyr)
+library(dplyr)
 library(doBy)
+library(data.table)
 
 #### getting started ####
 #load file and make first column (dilutions) the row name
@@ -17,6 +18,7 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   data1=plates.to.table(data1,date=T)
   data1=separate(data1,ID,into=c("RIX","ID","day","isotype"),sep="_",extra="merge")
   data1=separate(data1,isotype,into=c("isotype","antigen_virus","antigen"),sep="_")
+    #will get a warning - ignore! :)
   data1$antigen_virus="Influenza"
   data1$antigen="HA"
 
@@ -33,7 +35,7 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
 #set header columns
   hc=9
 
-### cleanup data
+  ### cleanup data
   #remove 16034x13067_45_0 from data bc it's a mock and it has a duplicate ID number that's messing stuff up
   data1=data1[-which(data1$RIX=="X16034x13067" & data1$ID=="45" & data1$day=="0"),]
 
@@ -47,8 +49,12 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   #IgG2ab = IgG2ac
   data1[which(data1$isotype=="IgG2ab"),]$isotype="IgG2ac"
   
-  #fix 18018 to 8018
-  data1[which(data1$dam=="18018"),]$dam="8018"
+  #fix misentered alias names
+  data1[which(data1$dam=="13067" & data1$sire=="8306"),]$sire="5306"
+  data1[which(data1$dam=="16411" & data1$sire=="8005"),]$dam="16441"
+  data1[which(data1$dam=="5035" & data1$sire=="16875"),]$sire="16785"
+  data1[which(data1$dam=="5306" & data1$sire=="5436"),]$sire="5346"
+  data1[which(data1$dam=="8002" & data1$sire=="8032"),]$sire="3032"
   
   #take out controls/negatives/etc
   data1=subset(data1,data1$RIX!="negxneg" & data1$RIX!="B6xB6" & data1$RIX!="B6.xB6." & data1$RIX!="X129x129" & data1$RIX!="antixanti")
@@ -58,7 +64,16 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
     data1 <- data1[ !ind, ]
     
   #get rid of the d0 mocks so can bind by day
+  mocks=data1[which(data1$day=="0"),]
   data1=data1[-which(data1$day=="0"),]
+  
+  #fix day errors
+  data1["X8018x3154_31_102_TotalG",]$day=7
+  data1[which(data1$RIX=="X16441x8005" & data1$ID=="76"),]$day=45
+  
+  #fix sample ID errors
+  data1[which(data1$RIX=="X8033x5346" & data1$ID=="55.28." & data1$day=="7"),]$ID=55
+  data1[which(data1$RIX=="X8033x5346" & data1$ID=="56.31." & data1$day=="7"),]$ID=56
   
   #examine duplicates
   data1$isotype=gsub("\\.[[:digit:]]","",data1$isotype)
@@ -111,47 +126,56 @@ data1<-as.data.frame(fread("data_bin/raw_platereader_2017.csv",stringsAsFactors=
   # test=dups[which(duplicated(dups[c("RIX","ID","day","isotype")]) | 
                      # duplicated(dups[c("RIX","ID","day","isotype")], fromLast = TRUE)),]
   
-  #switch to newer CC nomenclature
-  data1=alias.to.line(data1)
+#switch to newer CC nomenclature
+data1=alias.to.line2(data1)
   
 # ### infection status ###
-  # # add virus infection status and remove mocks
-  # # NOTE: deletes all rows for which there is no data about infection status
-  # infections=read.csv("~/Dropbox/Heise/U19-Ab/weight/weights_2017_05.csv")
-  # infections=infections[c(1,2,7,6,5,3)]
-  # colnames(infections)=c("RIX","ID","day","virus","cohort","RIX_ID")
-  # infections=alias.to.line(infections)
-  # # infections$RIX=paste0("X",infections$RIX)
-  # write.csv(infections,"data_bin/infection_status.csv",row.names=F)
+#infection_status.R
   
 infections=read.csv("data_bin/infection_status.csv")
 
 # data1=merge(data1,infections[c(1:2,4:6)],all.x=T) #ignore "day" in infection status bc Alan changed a lot of mock days to 0
 data1=merge(data1,infections,all.x=T)
-data1=data1[c(1:hc,(length(data1)-2):length(data1),(hc+1):(length(data1)-3))]
-hc=hc+3
-
-#remove mocks
-data1=subset(data1,data1$virus=="Influenza")
+data1=data1[c(1:hc,(length(data1)-3):length(data1),(hc+1):(length(data1)-4))]
+hc=hc+4
+data1[which(data1$day==29),]$virus="Influenza"
 
 #### QC ####
-
-##pull out rows w/ no attached infection status to further examine - samples with  no ID #s etc
-  mini.dat=data1[c("RIX","ID","day")]
+# 
+# ##pull out rows w/ no attached infection status to further examine - samples with  no ID #s etc
+  mini.dat=data1[c("RIX","dam","sire","ID","day","virus")]
   mini.dat=unique(mini.dat)
-  mini.dat$RIX=as.factor(mini.dat$RIX)
-  mini.dat[2:3]=sapply(mini.dat[2:3],as.integer)
-  mini.inf=infections[which(infections$day %in% c(7,10,15,45 & infections$virus=="Influenza")),]
-  mini.inf=mini.inf[c("RIX","ID","day")]
-  
-  novirus=anti_join(mini.dat,mini.inf)
-  noAb=anti_join(mini.inf,mini.dat)
-  
-  rm(mini.dat,mini.inf)
+  novirus=mini.dat[which(is.na(mini.dat$virus)),]
+  novirus=line.to.alias(novirus)
 
-#make sure all are numeric and subtract background
+#   mini.dat=data1[c("RIX_ID","RIX","dam","sire","ID","day")]
+#   mini.dat=unique(mini.dat)
+#   mini.dat$RIX=as.factor(mini.dat$RIX)
+#   mini.dat[c("ID","day")]=sapply(mini.dat[c("ID","day")],as.integer)
+#   mini.inf=infections[which(infections$day %in% c(7,10,15,29,45 & infections$virus=="Influenza")),]
+#   mini.inf=mini.inf[c("RIX_ID","RIX","ID","day")]
+#   
+#   novirus=anti_join(mini.dat,mini.inf)
+#     novirus=subset(novirus,novirus$day!=29)
+#   noAb=anti_join(mini.inf,mini.dat)
+#   
+#   rm(mini.dat,mini.inf)
+
+  
+#remove any newly ID'd mocks (not removed as d0) or samples w/o infection status
+mocks=subset(data1,data1$virus=="Mock")  
+data1=subset(data1,data1$virus=="Influenza")  
+  
+#make sure all are numeric and 
 data1[(length(data1)-7):length(data1)] = sapply(data1[(length(data1)-7):length(data1)], as.character)
 data1[(length(data1)-7):length(data1)] = sapply(data1[(length(data1)-7):length(data1)], as.numeric)
+
+#set maximal OD to 3.5 to equalize
+data.ods=data1[(length(data1)-7):length(data1)]
+data.ods[data.ods>3.5] = 3.504
+data1=cbind(data1[1:hc],data.ods)
+
+#subtract background
 data1[(length(data1)-7):length(data1)] = data1[(length(data1)-7):length(data1)]-0.04 #generic BG subtraction
 data1[, (length(data1)-7):length(data1)][data1[, (length(data1)-7):length(data1)] < 0] = 0 #make negatives zeroes for AUC
 
@@ -240,6 +264,7 @@ halfmax$halfmax= halfmax$halfmax %>% as.character %>% as.numeric
 #cast back into wide format based on isotype
 wide.halfmax=dcast(halfmax, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='halfmax')
 write.csv(wide.halfmax,"data_bin/halfmax_by_isotype.csv",row.names=F)
+write.csv(halfmax,"data_bin/halfmax_data.csv",row.names=F)
 
 # #### look for messed up duplicates ####
 # dup=which(duplicated(lowestdil[c("RIX","ID","day","isotype")]) | 
@@ -282,6 +307,7 @@ lastpos$lastpos= lastpos$lastpos %>% as.character %>% as.numeric
 #cast back into wide format based on isotype
 wide.lastpos=dcast(lastpos, RIX + dam + sire + ID + day + virus + antigen_virus + antigen + cohort + assay_date ~ isotype,mean,value.var='lastpos')
 write.csv(wide.lastpos,"data_bin/last_positive_by_isotype.csv",row.names=F)
+write.csv(lastpos,"data_bin/lastpos_data.csv",row.names=F)
 
 # #### look for messed up duplicates ####
 # dup=which(duplicated(lowestdil[c("RIX","ID","day","isotype")]) | 

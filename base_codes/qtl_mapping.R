@@ -3,18 +3,22 @@ setwd("~/Dropbox/Heise/U19-Ab/antibody/")
 
 #load libraries 
 library(ggplot2)
+library(DOQTL)
+library(doBy)
+library(gridExtra)
+library(reshape2)
 
 #load in transformed data (see "Antibody data for mapping pipeline.R")
 
 data.type="auc"
 
-dat.7=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d7/dat.7.",data.type,".csv",sep=""))
-dat.10=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d10/dat.10.",data.type,".csv",sep=""))
-dat.15=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d15/dat.15.",data.type,".csv",sep=""))
-dat.45=read.csv(paste("~/Dropbox/Heise/U19-Ab/data_bin/d45/dat.45.",data.type,".csv",sep=""))
+dat.7=read.csv(paste("data_bin/d7/dat.7.",data.type,".csv",sep=""))
+dat.10=read.csv(paste("data_bin/d10/dat.10.",data.type,".csv",sep=""))
+dat.15=read.csv(paste("data_bin/d15/dat.15.",data.type,".csv",sep=""))
+dat.45=read.csv(paste("data_bin/d45/dat.45.",data.type,".csv",sep=""))
 
 #set number of header columns before data starts
-hc=7
+hc=10
 
 #set list of antibody isotypes in the column order they appear in
 abs=c("IgG1" ,  "IgG2ac" , "IgG2b" , "IgG3" ,  "IgM"  ,  "TotalG")
@@ -39,7 +43,7 @@ for(k in 1:4)
     
     g<-ggplot(phenotype, aes_string(x=abs[i],y=paste0("reorder(RIX,",abs[i],")")))
     g+geom_point(aes(colour=assay_date))+theme_classic()+
-      labs(title=paste("Day",day.list[[k]],abs[i],sep=" "),y="RIX",x="AUC")
+      labs(title=paste("Day",day.list[[k]],abs[i],sep=" "),y="RIX",x=data.type)
     
     ggsave(file.path(paste("phenotypes/d",day,"/pheno_dist",sep=""),paste("pheno_dist_",abs[i],"_",data.type,"_d",day.list[[k]],".jpg",sep="")), width=6, height=9)
   }
@@ -71,8 +75,8 @@ for(k in 1:4)
   colnames(heritability.bounds)=c("upper","lower","day")
   
   write.csv(heritability.bounds,
-            file.path(paste("phenotypes/d",day,sep=""),paste("heritability_estimates_",data.type,"_d",day.list[[k]],".csv",sep=""))
-  )
+            file.path(paste0("phenotypes/d",day),
+                      paste0("heritability_estimates_",data.type,"_d",day.list[[k]],".csv")))
   heritability.bounds=NULL
 }
 
@@ -85,7 +89,7 @@ for(k in 1:4)
   V<-var(dat[(hc+1):length(dat)], na.rm=T)
   C<-cov2cor(V)
   
-  jpeg(file.path(paste("phenotypes/d",day,sep=""),paste("correlation_matrix_",data.type,"_d",day.list[[k]],".jpg",sep="")))
+  jpeg(file.path(paste0("phenotypes/d",day),paste("correlation_matrix_",data.type,"_d",day.list[[k]],".jpg",sep="")))
   heatmap(C, symm=TRUE, col = cm.colors(256))
   dev.off()
 }
@@ -158,20 +162,17 @@ for(k in 1:4)
 
 
 #### mapping ####
-#load in required libraries and data
-library(doBy)
-library(DOQTL)
-load("~/Dropbox/Heise/U19-Ab/cc_refs/CCRIXb38F.Rdata")
+#load in required data
+load("~/Dropbox/Heise/CC/cc_refs/CCRIXb38F.Rdata")
 # load(url("ftp://ftp.jax.org/MUGA/MM_snps.Rdata"))
-load("~/Dropbox/Heise/U19-Ab/cc_refs/MM_snps.Rdata")
+load("~/Dropbox/Heise/CC/cc_refs/MM_snps.Rdata")
 
 model.probs<-model.probs+(1e-20)
 K=kinship.probs(model.probs)
 
 ## to graph QTL scans (no significance threshold yet)
 
-for(k in c(2))
-  # for(k in 1:4)
+for(k in 1:4)
 {
   day=day.list[[k]]
   dat=dat.list[[k]]
@@ -187,7 +188,7 @@ for(k in c(2))
       covar = data.frame(sex=as.numeric(Map.dat$Sex == "F"))
       rownames(covar)=rownames(Map.dat)
   
-  png(file.path(paste("phenotypes/d",day,sep=""),paste("qtl_scan_d",day,"_",data.type,".png",sep=""))
+  png(file.path(paste0("phenotypes/d",day,"/qtl_scans/qtl_scan_d",day,"_",data.type,".png"))
     ,width=1000,height=500)
   par(mfrow = c(2,3))
   for(i in 1:6)
@@ -195,8 +196,8 @@ for(k in c(2))
     pheno=abs[i]
     qtl=scanone(pheno=Map.dat, pheno.col=pheno, addcovar=covar, probs=model.probs, K=K, snps=MM_snps)
     plot(qtl,main=paste("Day",day.list[[k]],pheno,sep=" "))
-    save(qtl,file=file.path(paste("phenotypes/d",day,sep=""),paste("d",day,"_",abs[i],"_",
-                                                                   data.type,"_qtl_obj",".RData",sep="")))
+    save(qtl,file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",abs[i],"_",
+                                   data.type,"_qtl_obj",".RData")))
   }
   dev.off()
 }
@@ -207,10 +208,8 @@ for(k in c(2))
 #### permutation test to calculate threshold ####
 #set number of permutations to run and threshold
 nperm=100
-probs=.95
 
-for(k in c(2))
-# for(k in 1:4)
+for(k in 1:4)
 {
   day=day.list[[k]]
   dat=dat.list[[k]]
@@ -226,43 +225,49 @@ for(k in c(2))
       covar = data.frame(sex=as.numeric(Map.dat$Sex == "F"))
       rownames(covar)=rownames(Map.dat)
   
+
+  png(file.path(paste0("phenotypes/d",day,"/qtl_scans/qtl_scan_d",day,"_",data.type,
+                           "_perms_",nperm,".png")) ,width=1000,height=500)
+  par(mfrow = c(2,3))
   for(i in 1:6)
   {
     pheno=abs[i]
   
-  
-    load(file.path(paste("phenotypes/d",day,sep=""),paste("d",day,"_",abs[i],"_",
-                                                          data.type,"_qtl_obj",".RData",sep="")))
+    load(file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",abs[i],"_",
+                     data.type,"_qtl_obj",".RData")))
     
     perms = scanone.perm(pheno = Map.dat, pheno.col = abs[i], probs = model.probs, addcovar = covar, snps= MM_snps, nperm = nperm)
     
     save(perms,
-         file=file.path(paste("phenotypes/d",day,sep=""),
-                   paste("d",day,"_",abs[i],"_",data.type,"_perms_",nperm,".Rdata",sep="")))
+         file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",abs[i],"_",
+                  data.type,"_perms_",nperm,".Rdata",sep="")))
     
-    thr = quantile(perms, probs = probs)    
+    thr = quantile(perms, probs = 0.95) 
+    
+    thr2 = quantile(perms, probs = 0.9)  
     
     plot(qtl,sig.thr=thr,main=paste("Day",day,pheno,data.type,sep=" "))
     
+    abline(h=thr2,col="blue")    
   }
   dev.off()
 }
 
 ### zoom in on chromosomes with significant/suggestive QTL to look at range and allele effects ###
-day=10
-pheno="IgG3"
-load(file=file.path(paste("phenotypes/d",day,sep=""),paste("d",day,"_",pheno,"_",
-                                                      data.type,"_qtl_obj",".RData",sep="")))
+day=7
+pheno="IgG2ac"
+load(file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",pheno,"_",
+                                                      data.type,"_qtl_obj",".RData")))
 
-chr=11
+chromo=17
 
 # plot(qtl, main=paste("Day",day,pheno,sep=" "))
-coefplot(qtl, chr=chr,legend=F)
-# coefplot_v2(qtl, chr=chr,main=paste("Day",day,pheno,"Chromosome",chr,sep=" "),legend=F)
+coefplot(qtl, chr=chromo,main=paste("Day",day,pheno,"Chromosome",chromo,sep=" "),legend=F)
+coefplot_v2(qtl, chr=chromo,main=paste("Day",day,pheno,"Chromosome",chromo,sep=" "),legend=F)
 
-### to get regions of genome that fall under significance threshold
-load(file=file.path(paste("phenotypes/d",day,sep=""),
-               paste("d",day,"_",pheno,"_",data.type,"_perms_",nperm,".Rdata",sep="")))
+### to get regions ofgenome that fall under significance threshold
+load(file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",pheno,"_",
+                           data.type,"_perms_",nperm,".Rdata")))
 
 thr = quantile(perms, probs = 0.95) 
 
@@ -273,14 +278,34 @@ qtl$lod$A[which.max(qtl$lod$A$lod),]
 #get confidence interval with 1.5 LOD drop
 lod.peak=qtl$lod$A[which.max(qtl$lod$A$lod),"lod"]
 lod.min=lod.peak-1.5
-sig.range=subset(qtl$lod$A,qtl$lod$A$lod>lod.min & qtl$lod$A$chr==11)
-sig.range[1,]
-sig.range[nrow(sig.range),]
+sig.range=subset(qtl$lod$A,qtl$lod$A$lod>lod.min & qtl$lod$A$chr==chromo)
+sig.range[c(1,nrow(sig.range)),]
 
 #compare to bayesian credible interval
-bayesint(qtl,chr=11,prob=0.95,expandtomarkers=T)
+bayesint(qtl,chr=chromo,prob=0.95,expandtomarkers=T)
 
 
+#qqnorm plots
+x=qtl$lod$A$lod
+  sub.x=qtl$lod$A
+    sub.x=subset(sub.x,sub.x$chr==chromo)
+    sub.x=(sub.x$lod)
+  sub.not=qtl$lod$A
+    sub.not=subset(sub.not,sub.not$chr!=chromo)
+    sub.not=(sub.not$lod)
+
+
+png(file.path(paste0("phenotypes/d",day,"_",pheno,"_",data.type,"_qqnorm.png")))
+  qqnorm(x,col="darkgray",main=paste0("Day",day,pheno),xlim=c(-4,4),ylim=c(0,7));qqline(x)
+  dev.off()
+
+png(file.path(paste0("phenotypes/d",day,"_",pheno,"_",data.type,"_qqnorm_chr",chromo,".png")))
+  qqnorm(sub.x,col="darkgray",main=paste0("Day",day,pheno,"- Chromosome",chromo),xlim=c(-4,4),ylim=c(0,7));qqline(x)
+  dev.off()
+  
+png(file.path(paste0("phenotypes/d",day,"_",pheno,"_",data.type,"_qqnorm_notchr",chromo,".png")))
+  qqnorm(sub.not,col="darkgray",main=paste0("Day",day,pheno,"- All except Chromosome",chromo),xlim=c(-4,4),ylim=c(0,7));qqline(x)
+  dev.off()
 
 
 
@@ -288,7 +313,7 @@ bayesint(qtl,chr=11,prob=0.95,expandtomarkers=T)
 #get haplotype probs for RIXs at the peak - manually 
 probs<-model.probs[,,qtl$lod$A[which.max(qtl$lod$A$lod),"marker"]]
  # write.csv(probs,file.path(paste("phenotypes/d",day,sep=""),
- #               paste("d",day,"_",pheno,"_",data.type,"_chr",chr,"_probs",".csv",sep="")))
+ #          paste("d",day,"_",pheno,"_",data.type,"_chr",chromo,"_probs",".csv",sep="")))
 
 
 #to look at a peak other than the very max, input chromosome of interest
@@ -300,6 +325,13 @@ qtl.chr[which.max(qtl.chr$lod),]
 qtl.chr.sub=subset(qtl.chr,qtl.chr$pos>63 & qtl.chr$pos<75)
 # plot(x=qtl.chr.sub$pos,y=qtl.chr.sub$lod)
 ggplot(qtl.chr.sub, aes(pos, lod))+geom_point()+theme_minimal()
+
+
+
+
+
+
+
 
 
 
@@ -453,7 +485,6 @@ for(i in 1:6)
 
 
 #### to get into kinetics: strain averages per isotype comparing days ####
-library(doBy)
 
 Map.full=NULL
 #Map.full aggregates all of the transformed data for each day
@@ -483,8 +514,6 @@ Map.full$RIX=as.factor(Map.full$RIX)
 # avg.full$RIX=as.factor(avg.full$RIX)
 
 #graphing that
-library(gridExtra)
-
 for(i in 1:6)
 {
   phenotype=Map.full[c(1:2,i+2)]
@@ -537,8 +566,6 @@ for (k in 1:4)
 
 
 #### comparing total quantities of isotypes ####
-library(reshape2)
-
 #day to look at
 wideauc=wideauc[c(1:3,7:13)]
 aucdata=melt(wideauc,id.vars=c("RIX","ID","day","assay_date"),variable.name="isotype",value.name="AUC")
