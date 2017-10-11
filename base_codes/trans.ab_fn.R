@@ -37,7 +37,7 @@ log.ab=function(df,hc=hc,base=exp(1),num=6){
 hist.ab=function(df,hc=hc,num=6){
   for(i in 1:num)
   {
-    phenotype<-df[,i+hc]
+    phenotype<-df[,(i+hc)]
     hist(phenotype, main=paste(gsub("dat*","",deparse(substitute(df))),abs[i],sep=" "))
   }
 }
