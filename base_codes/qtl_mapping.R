@@ -195,7 +195,7 @@ for(k in 1:4)
   {
     pheno=abs[i]
     qtl=scanone(pheno=Map.dat, pheno.col=pheno, addcovar=covar, probs=model.probs, K=K, snps=MM_snps)
-    plot(qtl,main=paste("Day",day.list[[k]],pheno,sep=" "))
+    plot(qtl,ylim=c(0,8),main=paste("Day",day.list[[k]],pheno,sep=" "))
     save(qtl,file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",abs[i],"_",
                                    data.type,"_qtl_obj",".RData")))
   }
@@ -232,43 +232,35 @@ for(k in 1:4)
   for(i in 1:6)
   {
     pheno=abs[i]
-  
     load(file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",abs[i],"_",
-                     data.type,"_qtl_obj",".RData")))
-    
+                   data.type,"_qtl_obj",".RData")))
     perms = scanone.perm(pheno = Map.dat, pheno.col = abs[i], probs = model.probs, addcovar = covar, snps= MM_snps, nperm = nperm)
-    
     save(perms,
          file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",abs[i],"_",
                   data.type,"_perms_",nperm,".Rdata",sep="")))
-    
     thr = quantile(perms, probs = 0.95) 
-    
     thr2 = quantile(perms, probs = 0.9)  
-    
-    plot(qtl,sig.thr=thr,main=paste("Day",day,pheno,data.type,sep=" "))
-    
+    plot(qtl,ylim=c(0,8),sig.thr=thr,main=paste("Day",day,pheno,data.type,sep=" "))
     abline(h=thr2,col="blue")    
   }
   dev.off()
 }
 
 ### zoom in on chromosomes with significant/suggestive QTL to look at range and allele effects ###
-day=7
-pheno="IgG2ac"
+day=10
+pheno="IgG2b"
 load(file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",pheno,"_",
                                                       data.type,"_qtl_obj",".RData")))
-
-chromo=17
-
 # plot(qtl, main=paste("Day",day,pheno,sep=" "))
-coefplot(qtl, chr=chromo,main=paste("Day",day,pheno,"Chromosome",chromo,sep=" "),legend=F)
-coefplot_v2(qtl, chr=chromo,main=paste("Day",day,pheno,"Chromosome",chromo,sep=" "),legend=F)
 
-### to get regions ofgenome that fall under significance threshold
+chromo=16
+
+coefplot(qtl, chr=chromo,main=paste("Day",day,pheno,"Chromosome",chromo,sep=" "),legend=F)
+# coefplot_v2(qtl, chr=chromo,main=paste("Day",day,pheno,"Chromosome",chromo,sep=" "),legend=F)
+
+### to get regions of genome that fall under significance threshold
 load(file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",pheno,"_",
                            data.type,"_perms_",nperm,".Rdata")))
-
 thr = quantile(perms, probs = 0.95) 
 
 #get marker with maximum LOD score and look at surrounding interval
@@ -308,8 +300,6 @@ png(file.path(paste0("phenotypes/d",day,"_",pheno,"_",data.type,"_qqnorm_notchr"
   dev.off()
 
 
-
-
 #get haplotype probs for RIXs at the peak - manually 
 probs<-model.probs[,,qtl$lod$A[which.max(qtl$lod$A$lod),"marker"]]
  # write.csv(probs,file.path(paste("phenotypes/d",day,sep=""),
@@ -317,7 +307,7 @@ probs<-model.probs[,,qtl$lod$A[which.max(qtl$lod$A$lod),"marker"]]
 
 
 #to look at a peak other than the very max, input chromosome of interest
-qtl.chr=subset(qtl$lod$A,qtl$lod$A$chr==5)
+qtl.chr=subset(qtl$lod$A,qtl$lod$A$chr==16)
 qtl.chr[which.max(qtl.chr$lod),]
 # qtl.chr[(which.max(qtl.chr$lod)-10):(which.max(qtl.chr$lod)+10),]
 
@@ -327,63 +317,61 @@ qtl.chr.sub=subset(qtl.chr,qtl.chr$pos>63 & qtl.chr$pos<75)
 ggplot(qtl.chr.sub, aes(pos, lod))+geom_point()+theme_minimal()
 
 
+## to graph QTL scans w/ another gene as a covariate
+chromo=11
+start=71686550
+end=71686570
+locus.name="chr11"
 
+pheno="IgG3"
 
+allele.effect=c(
+  A.score=1 ,
+  B.score=1 ,
+  C.score=1 ,
+  D.score=1 ,
+  E.score=1 ,
+  F.score=1 ,
+  G.score=1 ,
+  H.score=0 )
+score=get.quickeffects(chromo,start,end,allele.effects)
 
+day=15
 
-
-
-
-
-#####where i am
-
-
-## to graph QTL scans w/ Mx1 status as covariate
-dat=dat.10
+dat=get(paste0("dat.",day))
 Map.dat=summaryBy(IgG1+IgG2ac+IgG2b+IgG3+IgM+TotalG ~ 
                     RIX + day, data=dat, FUN=mean, na.rm=T)
 colnames(Map.dat)[3:8] = gsub(".mean","",colnames(Map.dat[3:8]))
-Map.dat$RIX=as.character(Map.dat$RIX)
 
-#code with Mx1 status - same code as from 2 pheno dist but with score # instead of allele
-Map.dat$RIX=as.character(Map.dat$RIX)
-RIX_sep <- data.frame(do.call("rbind", strsplit(Map.dat$RIX,"x")))
-colnames(RIX_sep)[1:2]=c("dam","sire")
-Map.dat=cbind(RIX_sep,Map.dat)
-mx1=read.csv("~/Dropbox/Heise/CC/mx1_status.csv")
-mx1=mx1[c(1,10)]
-colnames(mx1)[1]="dam"
-Map.dat=merge(Map.dat,mx1)
-colnames(Map.dat)[11]="dam.mx1"
-colnames(mx1)[1]="sire"
-Map.dat=merge(Map.dat,mx1)
-colnames(Map.dat)[12]="sire.mx1"
-# Map.dat=Map.dat[c(1,12,2,11,3:10)]
-Map.dat$mx1.sum=rowSums(Map.dat[c("dam.mx1","sire.mx1")])
+Map.dat=add.stat.gene(Map.dat,score,locus.name)
 
 Map.dat$Sex="F"
 Map.dat$RIX=as.factor(Map.dat$RIX)
+Map.dat[[paste0("add_",locus.name)]] = Map.dat[[paste0("add_",locus.name)]] %>% as.character %>% as.numeric
 
-#remove cc057 since mx1 haplotype is heterozygous
-Map.dat=Map.dat[-which(Map.dat$dam=="CC057" | Map.dat$sire=="CC057"),]
+# #remove cc057 since mx1 haplotype is heterozygous
+# Map.dat=Map.dat[-which(Map.dat$dam=="CC057" | Map.dat$sire=="CC057"),]
 
 row.names(Map.dat)<-Map.dat$RIX
-covar = data.frame(sex=as.numeric(Map.dat$Sex == "F"),mx1=Map.dat$mx1.sum)
+covar = data.frame(sex=as.numeric(Map.dat$Sex == "F"),Map.dat[paste0("add_",locus.name)])
 rownames(covar)=rownames(Map.dat)
 
+qtl=scanone(pheno=Map.dat, pheno.col=pheno, addcovar=covar, probs=model.probs, K=K, snps=MM_snps)
+save(qtl,file=file.path(paste0("phenotypes/d",day,"/qtl_scans/d",day,"_",pheno,"_",
+                               data.type,"_",locus.name,"_covar_qtl_obj",".RData")))
 
-# for(i in 1:6)
-{
-  fp=paste("qtls/qtl_scan_mx1_covar_d",day.list[k],"_",pheno,"_",run.date,sep="")
-  pheno=abs[i]
-  png(file.path(paste(fp,".png",sep="")),width=800,height=400)
-  qtl=scanone(pheno=Map.dat, pheno.col=pheno, addcovar=covar, probs=model.probs, K=K, snps=MM_snps)
-  plot(qtl,main=paste(pheno))
-  #     saveRDS(qtl,file.path(paste("qtls/d",day,sep=""),paste("qtl_scan_d",day,"_",abs[i],"_",run.date,".rds",sep="")))
-  save(qtl,file=file.path(paste(fp,".RData",sep="")))
-  dev.off()
-}
+png(file.path(paste0("phenotypes/d",day,"/qtl_scans/qtl_scan_d",day,"_",data.type,"_",locus.name,"_covar_qtl_obj",".png"))
+    ,width=1000,height=500)
+par(mfrow = c(2,3))
 
+for (i in 1:3){
+  plot(x=NULL)
+  }
+plot(qtl,ylim=c(0,8),main=paste("Day",day,pheno,"--",locus.name,"covariate",sep=" "))
+
+dev.off()
+
+####
 
 
 
